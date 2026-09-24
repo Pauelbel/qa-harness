@@ -19,6 +19,7 @@ def test_excel_checker_accepts_valid_report(tmp_path: Path) -> None:
 
     with allure.step("Проверить структуру и значения Excel"):
         checker = ExcelDataQualityChecker(report_path)
+        assert checker.get_row_count() == 1
         checker.check_columns(["ФИО", "Дата"], strict_order=True)
         checker.check_required(["ФИО", "Дата"])
         checker.check_date("Дата")

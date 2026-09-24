@@ -78,6 +78,7 @@ python -m pytest
 - `ExcelSource` — подготовка Excel из файла, байтов или HTTP-ответа с сохранением исходного имени;
 - `ExcelDataQualityChecker` — последовательные проверки Excel-отчётов;
 - `OdataAssertions` — проверки структуры и поведения OData-ответов;
+- `logging` — единый формат консольных и файловых логов pytest;
 - `allure_reporting` — вложение логов упавшего теста в Allure;
 - `playwright` — browser lifecycle, скриншот и trace при падении frontend-теста;
 - `load_settings` — единая загрузка и проверка корневого YAML.
@@ -101,6 +102,7 @@ from qa_core.checks.excel import ExcelDataQualityChecker
 
 ```python
 pytest_plugins = [
+    "qa_core.pytest_plugins.logging",           # консольные и файловые логи
     "qa_core.pytest_plugins.allure_reporting",  # логи и Allure-отчёт
     "qa_core.pytest_plugins.playwright",         # frontend-фикстура browser_page
 ]
@@ -124,6 +126,7 @@ def test_home_page(browser_page):
         assert browser_page.title()
 ```
 
+`logging` настраивает вывод и пишет файл в папку `logs` подключившего проекта,
 `allure_reporting` прикладывает логи к упавшему тесту, а `playwright` создаёт
 браузерную страницу и сохраняет скриншот и trace при падении.
 
