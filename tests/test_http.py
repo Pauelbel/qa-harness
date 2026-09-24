@@ -3,6 +3,7 @@
 from datetime import timedelta
 from pathlib import Path
 
+import allure
 import pytest
 
 from qa_core.clients.http import BaseHttpClient
@@ -46,34 +47,43 @@ def http_config_path(tmp_path: Path) -> Path:
     return config_path
 
 
+@allure.epic("Backend")
+@allure.title("Маскирование чувствительных query-параметров")
 def test_safe_url_masks_configured_query_parameters(
     http_config_path: Path,
 ) -> None:
-    client = BaseHttpClient(session=FakeSession(), config_path=http_config_path)
+    with allure.step("Сформировать URL для лога"):
+        client = BaseHttpClient(session=FakeSession(), config_path=http_config_path)
+        safe_url = client._safe_url(
+            "https://service.example/items?token=secret&visible=yes"
+        )
 
-    safe_url = client._safe_url(
-        "https://service.example/items?token=secret&visible=yes"
-    )
-
-    assert "secret" not in safe_url
-    assert "visible=yes" in safe_url
+    with allure.step("Проверить маскирование"):
+        assert "secret" not in safe_url
+        assert "visible=yes" in safe_url
 
 
+@allure.epic("Backend")
+@allure.title("HTTP-клиент возвращает исходный response")
 def test_get_returns_original_full_response(http_config_path: Path) -> None:
     response = FakeResponse(text="123456789")
     session = FakeSession(response)
     client = BaseHttpClient(session=session, config_path=http_config_path)
 
-    actual = client.get("https://service.example/items", timeout=10)
+    with allure.step("Отправить GET-запрос"):
+        actual = client.get("https://service.example/items", timeout=10)
 
-    assert actual is response
-    assert actual.text == "123456789"
-    assert session.calls == [
-        ("get", "https://service.example/items", {"timeout": 10})
-    ]
-    assert client._short_body(response).startswith("12345…")
+    with allure.step("Проверить response и диагностическое сокращение"):
+        assert actual is response
+        assert actual.text == "123456789"
+        assert session.calls == [
+            ("get", "https://service.example/items", {"timeout": 10})
+        ]
+        assert client._short_body(response).startswith("12345…")
 
 
+@allure.epic("Backend")
+@allure.title("HTTP-клиент закрывает созданную сессию")
 def test_context_manager_closes_owned_session(
     http_config_path: Path,
     monkeypatch,
@@ -81,7 +91,9 @@ def test_context_manager_closes_owned_session(
     session = FakeSession()
     monkeypatch.setattr("qa_core.clients.http.requests.Session", lambda: session)
 
-    with BaseHttpClient(config_path=http_config_path):
-        pass
+    with allure.step("Открыть и закрыть HTTP-клиент"):
+        with BaseHttpClient(config_path=http_config_path):
+            pass
 
-    assert session.closed is True
+    with allure.step("Проверить закрытие сессии"):
+        assert session.closed is True

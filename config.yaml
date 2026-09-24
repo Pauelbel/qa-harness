@@ -23,5 +23,5 @@ browser:
   width: 1920
   height: 1080
 
-  # Разрешает UI-тестам работать с тестовыми HTTPS-сертификатами.
+  # Разрешает frontend-тестам работать с тестовыми HTTPS-сертификатами.
   ignore_https_errors: true

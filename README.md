@@ -19,9 +19,6 @@ config.yaml             # настройки компонентов
 pyproject.toml          # установка, зависимости и настройки pytest
 ```
 
-Папка `база для разбора` — временный архив исходного проекта. Она не входит в
-пакет и не участвует в запуске тестов.
-
 ## Первый запуск
 
 Требуется Python 3.11 или новее. В PowerShell из корня репозитория:
@@ -30,12 +27,42 @@ pyproject.toml          # установка, зависимости и наст
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
-python -m pytest
 ```
 
-Настройки pytest находятся в `pyproject.toml`, поэтому обычная команда
-`python -m pytest` запускает только корневую папку `tests` и не заходит в архив.
+### Установка зависимостей
+
+Выберите backend или frontend. Allure устанавливается в обоих вариантах.
+
+```powershell
+# Backend-тесты: HTTP, PostgreSQL, Excel и OData
+python -m pip install -e ".[backend]"
+
+# Frontend-тесты: Python-библиотека Playwright
+python -m pip install -e ".[frontend]"
+```
+
+Для frontend-тестов после установки пакета отдельно установите браузер Chromium:
+
+```powershell
+python -m playwright install chromium
+```
+
+Первая frontend-команда ставит Python-библиотеку Playwright, вторая скачивает сам
+браузер для запуска тестов.
+
+Если в одном проекте нужны и backend-, и frontend-тесты:
+
+```powershell
+python -m pip install -e ".[backend,frontend]"
+python -m playwright install chromium
+```
+
+Настройки pytest находятся в `pyproject.toml`. Для запуска проверок самого ядра установите
+backend-зависимости и запустите:
+
+```powershell
+python -m pytest
+```
 
 ## Что относится к ядру
 
@@ -52,7 +79,7 @@ python -m pytest
 - `ExcelDataQualityChecker` — последовательные проверки Excel-отчётов;
 - `OdataAssertions` — проверки структуры и поведения OData-ответов;
 - `allure_reporting` — вложение логов упавшего теста в Allure;
-- `playwright` — browser lifecycle, скриншот и trace при падении UI-теста;
+- `playwright` — browser lifecycle, скриншот и trace при падении frontend-теста;
 - `load_settings` — единая загрузка и проверка корневого YAML.
 
 Клиенты конкретных систем, URL, токены, payload, Page Objects и бизнес-тесты
@@ -68,20 +95,36 @@ from qa_core.clients.http import BaseHttpClient
 from qa_core.checks.excel import ExcelDataQualityChecker
 ```
 
-Для Allure-плагина установите extra `allure` и подключите его в проектном
-`conftest.py`:
+### Подключение pytest-плагинов
 
-```python
-pytest_plugins = ["qa_core.pytest_plugins.allure_reporting"]
-```
-
-Для UI-тестов установите extra `ui` и подключите оба плагина:
+Добавьте нужные плагины в корневой `conftest.py` вашего проекта:
 
 ```python
 pytest_plugins = [
-    "qa_core.pytest_plugins.allure_reporting",
-    "qa_core.pytest_plugins.playwright",
+    "qa_core.pytest_plugins.allure_reporting",  # логи и Allure-отчёт
+    "qa_core.pytest_plugins.playwright",         # frontend-фикстура browser_page
 ]
 ```
+
+Если frontend-тестов нет, удалите из списка строку с `playwright`.
+
+После этого в frontend-тестах доступна готовая фикстура `browser_page`:
+
+```python
+import allure
+
+
+@allure.epic("Frontend")
+@allure.title("Проверка главной страницы")
+def test_home_page(browser_page):
+    with allure.step("Открыть главную страницу"):
+        browser_page.goto("https://example.com")
+
+    with allure.step("Проверить заголовок"):
+        assert browser_page.title()
+```
+
+`allure_reporting` прикладывает логи к упавшему тесту, а `playwright` создаёт
+браузерную страницу и сохраняет скриншот и trace при падении.
 
 Практические примеры находятся в [Шпаргалка.md](Шпаргалка.md).

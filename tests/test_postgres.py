@@ -2,10 +2,14 @@
 
 from unittest.mock import MagicMock
 
+import allure
+
 from qa_core.clients import postgres
 from qa_core.clients.postgres import PostgresClient
 
 
+@allure.epic("Backend")
+@allure.title("PostgreSQL-клиент выполняет параметризованный запрос")
 def test_fetch_all_executes_parameterized_query(monkeypatch) -> None:
     connect_context = MagicMock()
     connection = connect_context.__enter__.return_value
@@ -22,18 +26,19 @@ def test_fetch_all_executes_parameterized_query(monkeypatch) -> None:
         host="db.example",
         port=5432,
     )
-    rows = client.fetch_all("SELECT id FROM orders WHERE status = %s", ["new"])
+    with allure.step("Выполнить SELECT с параметром"):
+        rows = client.fetch_all("SELECT id FROM orders WHERE status = %s", ["new"])
 
-    assert rows == [(1,), (2,)]
-    connect.assert_called_once_with(
-        dbname="app",
-        user="tester",
-        password="secret",
-        host="db.example",
-        port=5432,
-    )
-    cursor.execute.assert_called_once_with(
-        "SELECT id FROM orders WHERE status = %s",
-        ["new"],
-    )
-
+    with allure.step("Проверить подключение, запрос и результат"):
+        assert rows == [(1,), (2,)]
+        connect.assert_called_once_with(
+            dbname="app",
+            user="tester",
+            password="secret",
+            host="db.example",
+            port=5432,
+        )
+        cursor.execute.assert_called_once_with(
+            "SELECT id FROM orders WHERE status = %s",
+            ["new"],
+        )
