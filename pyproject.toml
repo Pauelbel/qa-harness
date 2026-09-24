@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qa-core"
+version = "0.1.0"
+description = "Reusable HTTP, PostgreSQL, OData and data-quality test infrastructure"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "openpyxl>=3.1",
+    "pandas>=3.0",
+    "psycopg2-binary>=2.9",
+    "pydantic>=2.13",
+    "pytest-check>=2.9",
+    "PyYAML>=6.0",
+    "requests>=2.34",
+]
+
+[project.optional-dependencies]
+allure = ["allure-pytest>=2.16"]
+ui = [
+    "allure-pytest>=2.16",
+    "pytest-playwright",
+]
+dev = [
+    "allure-pytest>=2.16",
+    "pytest>=8.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["qa_core*"]
+namespaces = true
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
