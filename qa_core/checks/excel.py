@@ -40,9 +40,9 @@ class CheckError:
         value: Фактическое значение ячейки, если ошибка относится к строке отчёта.
 
     Пример:
-        >>> error = CheckError(row=5, column="Дата списания", message="не парсится")
+        >>> error = CheckError(row=5, column="Дата", message="не парсится")
         >>> str(error)
-        "[ROW 5] 'Дата списания' → не парсится"
+        "[ROW 5] 'Дата' → не парсится"
     """
     row: int
     column: str
@@ -51,8 +51,6 @@ class CheckError:
 
     def __str__(self) -> str:
         return f"[ROW {self.row}] '{self.column}' → {self.message}"
-
-
 
 # ===========================================================================================================================
 # 2. Ядро валидации Excel
@@ -65,7 +63,7 @@ class ExcelDataQualityChecker:
 
     Пример использования в тесте:
         >>> checker = ExcelDataQualityChecker("report.xlsx")
-        >>> checker.check_columns(["Должность", "ФИО"]).check_required(["Должность"])
+        >>> checker.check_columns(["ФИО", "Дата"]).check_required(["ФИО"])
         >>> checker.assert_valid()  # выбросит AssertionError, если есть ошибки
     """
 
@@ -182,7 +180,7 @@ class ExcelDataQualityChecker:
 
         Пример в тесте:
             >>> checker.check_columns(
-            ...     ["Должность", "ФИО", "Дата списания"],
+            ...     ["ФИО", "Дата", "Сумма"],
             ...     strict_order=True,
             ... )
         """
@@ -220,10 +218,7 @@ class ExcelDataQualityChecker:
             columns: Список имён столбцов для проверки.
 
         Пример в тесте:
-            >>> checker.check_required([
-            ...     "Должность", "ФИО", "Дата списания",
-            ...     "Затраченное время в минутах", "Заказ/название",
-            ... ])
+            >>> checker.check_required(["ФИО", "Дата", "Сумма"])
         """
         for col in columns:
             if col not in self.df.columns:
@@ -248,7 +243,7 @@ class ExcelDataQualityChecker:
             fmt: Строка формата для ``pd.to_datetime``.
 
         Пример в тесте:
-            >>> checker.check_date("Дата списания", fmt="%d.%m.%Y")
+            >>> checker.check_date("Дата", fmt="%d.%m.%Y")
         """
         if column not in self.df.columns:
             self._errors.append(
@@ -318,8 +313,7 @@ class ExcelDataQualityChecker:
         """Проверяет, что числовые значения не содержат дробной части.
 
         Параметры:
-            column: Название колонки с целыми числами. Например,
-                ``"Затраченное время в минутах"``.
+            column: Название колонки с целыми числами. Например, ``"Количество"``.
         """
         if column not in self.df.columns:
             self._errors.append(
@@ -410,8 +404,8 @@ class ExcelDataQualityChecker:
             case_sensitive: Учитывать ли регистр (по умолчанию ``True``).
 
         Пример в тесте:
-            >>> checker.check_enum("Ночное списание", allowed=["Да", "Нет"])
-            >>> checker.check_enum("Нерабочее время", allowed=["Да", "Нет"])
+            >>> checker.check_enum("Статус", allowed=["new", "done"])
+            >>> checker.check_enum("Признак", allowed=["да", "нет"], case_sensitive=False)
         """
         if column not in self.df.columns:
             self._errors.append(
@@ -594,14 +588,14 @@ class ExcelDataQualityChecker:
 
         Параметры:
             hours_col: Имя столбца с часами.
-            rate_col: Имя столбца со стоимостью нормочаса.
+            rate_col: Имя столбца со ставкой за час.
             cost_col: Имя столбца с итоговой стоимостью.
             tolerance: Допустимая погрешность (по умолчанию 0.01).
 
         Пример в тесте:
             >>> checker.check_cost_calculation(
-            ...     hours_col="Затраченное время в часах",
-            ...     rate_col="Стоимость нормочаса",
+            ...     hours_col="Часы",
+            ...     rate_col="Ставка",
             ...     cost_col="Стоимость",
             ...     tolerance=0.01,
             ... )
@@ -745,10 +739,10 @@ class ExcelDataQualityChecker:
             message: Текст ошибки (по умолчанию "полный дубликат строки").
     
         Пример в тесте:
-            >>> checker.check_no_duplicate_rows(["Должность", "ФИО", "Дата списания"])
+            >>> checker.check_no_duplicate_rows(["ФИО", "Дата"])
             >>> checker.check_no_duplicate_rows(
-            ...     ["Заказ/название", "Затраченное время в минутах"],
-            ...     message="дублирующая запись по заказу и времени",
+            ...     ["Номер", "Сумма"],
+            ...     message="дублирующая запись по номеру и сумме",
             ... )
         """
         columns_to_check = list(columns) if columns is not None else list(self.df.columns)
@@ -813,8 +807,8 @@ class ExcelDataQualityChecker:
             >>> checker.check_filename(expected_suffix=".xlsx")
             >>> # Проверка оригинального имени из API
             >>> checker.check_filename(
-            ...     actual_name=calc.original_filename,
-            ...     expected_pattern=r"^[0-9a-f]{32}_timesheet_report_.*\.xlsx$",
+            ...     actual_name=report.original_filename,
+            ...     expected_pattern=r"^report_\d{8}\.xlsx$",
             ... )
         """
         name = actual_name if actual_name is not None else self.path.name

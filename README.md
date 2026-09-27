@@ -12,7 +12,8 @@ qa_core/
 ├── clients/            # HTTP- и PostgreSQL-клиенты
 ├── sources/            # подготовка данных для checker-ов
 ├── pytest_plugins/     # переиспользуемые плагины pytest
-└── config.py           # единая загрузка config.yaml
+├── config.py           # единая загрузка config.yaml
+└── secrets.py          # чтение секретов из env или Vault
 tests/                  # тесты самого qa-core
 config.yaml             # настройки компонентов
 Шпаргалка.md             # примеры использования
@@ -31,7 +32,8 @@ python -m pip install --upgrade pip
 
 ### Установка зависимостей
 
-Выберите backend или frontend. Allure устанавливается в обоих вариантах.
+Выберите нужные наборы зависимостей. Каждый набор можно установить отдельно
+или объединить с другими через запятую. Allure входит в `backend` и `frontend`.
 
 ```powershell
 # Backend-тесты: HTTP, PostgreSQL, Excel и OData
@@ -39,23 +41,38 @@ python -m pip install -e ".[backend]"
 
 # Frontend-тесты: Python-библиотека Playwright
 python -m pip install -e ".[frontend]"
+
+# Подключение к Vault: Python-библиотека hvac
+python -m pip install -e ".[vault]"
 ```
 
-Для frontend-тестов после установки пакета отдельно установите браузер Chromium:
+Можно установить несколько наборов одной командой:
 
 ```powershell
-python -m playwright install chromium
-```
-
-Первая frontend-команда ставит Python-библиотеку Playwright, вторая скачивает сам
-браузер для запуска тестов.
-
-Если в одном проекте нужны и backend-, и frontend-тесты:
-
-```powershell
+# Backend и frontend вместе
 python -m pip install -e ".[backend,frontend]"
+
+# Все три набора сразу
+python -m pip install -e ".[backend,frontend,vault]"
+```
+
+#### Дополнительные настройки frontend
+
+Если выбран `frontend`, после установки пакета отдельно установите браузер Chromium:
+
+```powershell
 python -m playwright install chromium
 ```
+
+#### Дополнительные настройки Vault
+
+Набор `vault` устанавливает библиотеку `hvac` для подключения, а не сервер Vault.
+Для чтения секретов задайте `SECRETS_SOURCE=vault`, адрес `VAULT_ADDR`, точку
+монтирования `VAULT_MOUNT` и путь `VAULT_PATH`. Для авторизации укажите
+`VAULT_TOKEN` либо пару `VAULT_ROLE_ID` и `VAULT_SECRET_ID`.
+Версия KV задаётся через `VAULT_KV_VERSION` (`1` или `2`, по умолчанию `2`).
+Если секреты читаются только из переменных окружения или `.env`, набор `vault`
+не нужен.
 
 Настройки pytest находятся в `pyproject.toml`. Для запуска проверок самого ядра установите
 backend-зависимости и запустите:
@@ -82,6 +99,7 @@ python -m pytest
 - `allure_reporting` — вложение логов упавшего теста в Allure;
 - `playwright` — browser lifecycle, скриншот и trace при падении frontend-теста;
 - `load_settings` — единая загрузка и проверка корневого YAML.
+- `SecretStore` — чтение обязательных значений из `env` или Vault, независимо от pytest.
 
 Клиенты конкретных систем, URL, токены, payload, Page Objects и бизнес-тесты
 остаются в репозитории подключающего проекта.

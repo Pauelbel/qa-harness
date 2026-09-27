@@ -25,6 +25,9 @@ backend = [
 frontend = [
     "pytest-playwright",
 ]
+vault = [
+    "hvac>=2.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]
