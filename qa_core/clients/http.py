@@ -15,7 +15,8 @@
     ...     response.raise_for_status()
 
 Настройки маскирования URL и длины ответа в логах читаются из секции ``http``
-корневого ``config.yaml``. Другой YAML можно указать через ``config_path``.
+корневого ``config.yaml``; без файла действуют значения по умолчанию. Другой
+YAML можно указать через ``config_path``.
 """
 
 from __future__ import annotations
@@ -26,11 +27,28 @@ from types import TracebackType
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import requests
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from qa_core.config import load_settings
+from qa_core.config import load_section
 
 
 logger = logging.getLogger(__name__)
+
+
+class HttpSettings(BaseModel):
+    """Секция ``http`` файла config.yaml."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    max_logged_response_body_length: int = Field(default=2000, ge=0)
+    sensitive_query_parameters: frozenset[str] = frozenset(
+        {"token", "access_token", "api_key", "key", "password"}
+    )
+
+    @field_validator("sensitive_query_parameters")
+    @classmethod
+    def normalize_parameter_names(cls, value: frozenset[str]) -> frozenset[str]:
+        return frozenset(name.lower() for name in value)
 
 
 class BaseHttpClient:
@@ -43,7 +61,7 @@ class BaseHttpClient:
         print_response: bool = False,
         config_path: str | Path | None = None,
     ) -> None:
-        settings = load_settings(config_path).http
+        settings = load_section("http", HttpSettings, config_path)
         self._sensitive_query_parameters = settings.sensitive_query_parameters
         self._max_logged_response_body_length = (
             settings.max_logged_response_body_length

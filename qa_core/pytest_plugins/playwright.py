@@ -16,17 +16,32 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 import allure
 import pytest
 from playwright.sync_api import Page, Playwright
+from pydantic import BaseModel, ConfigDict, Field
 
-from qa_core.config import BrowserSettings, load_settings
+from qa_core.config import load_section
+
+
+class BrowserSettings(BaseModel):
+    """Секция ``browser`` файла config.yaml."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    engine: Literal["chromium", "firefox", "webkit"] = "chromium"
+    headless: bool = True
+    width: int = Field(default=1920, gt=0)
+    height: int = Field(default=1080, gt=0)
+    ignore_https_errors: bool = True
 
 
 @pytest.fixture
 def qa_browser_settings() -> BrowserSettings:
     """Возвращает настройки Playwright; может быть переопределена проектом."""
-    return load_settings().browser
+    return load_section("browser", BrowserSettings)
 
 
 @pytest.fixture

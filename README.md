@@ -31,29 +31,52 @@ python -m pip install --upgrade pip
 
 ### Установка зависимостей
 
-Выберите нужные наборы зависимостей. Каждый набор можно установить отдельно
-или объединить с другими через запятую. Allure входит в `backend` и `frontend`.
+Базовая установка тянет только чтение `config.yaml` и pytest. Остальное ставится
+наборами по компонентам, их можно перечислять через запятую:
+
+| Набор | Что добавляет |
+| --- | --- |
+| `http` | `BaseHttpClient` (requests) |
+| `db` | `PostgresClient` (psycopg2) |
+| `excel` | `ExcelDataQualityChecker` и `ExcelSource` (pandas, openpyxl) |
+| `odata` | `OdataAssertions` (pytest-check) |
+| `allure` | плагин `allure_reporting` |
+| `ui` | плагин `playwright` вместе с Allure |
+| `vault` | чтение секретов из Vault (hvac) |
+
+Готовые сочетания: `backend` (`http`, `db`, `excel`, `odata`, `allure`),
+`frontend` (`ui`) и `all` (всё).
 
 ```powershell
-# Backend-тесты: HTTP, PostgreSQL, Excel и OData
-python -m pip install -e ".[backend]"
+# Только нужные компоненты
+python -m pip install -e ".[http,excel,allure]"
 
-# Frontend-тесты: Python-библиотека Playwright
-python -m pip install -e ".[frontend]"
-
-# Подключение к Vault: Python-библиотека hvac
-python -m pip install -e ".[vault]"
+# Всё сразу
+python -m pip install -e ".[all]"
 ```
 
-Можно установить несколько наборов одной командой:
+Из Git на другом проекте:
 
 ```powershell
-# Backend и frontend вместе
-python -m pip install -e ".[backend,frontend]"
-
-# Все три набора сразу
-python -m pip install -e ".[backend,frontend,vault]"
+python -m pip install "qa-core[http,excel,allure] @ git+https://github.com/Pauelbel/qa-harness.git"
 ```
+
+#### Конфигурация
+
+`config.yaml` необязателен: без файла или секции действуют значения по умолчанию.
+Каждый компонент читает только свою секцию (`http`, `browser`), лишние секции
+игнорируются, а неизвестный ключ внутри секции вызывает ошибку.
+
+## Расширение плагинами
+
+Своя система плагинов не нужна, используется pytest:
+
+- **плагин проекта** — модуль, подключённый в `pytest_plugins` в `conftest.py`;
+- **плагин отдельным пакетом** — пакет с зависимостью на `qa-core` и записью
+  `[project.entry-points.pytest11]` в `pyproject.toml`, он подхватывается после `pip install`.
+
+Собственную секцию конфига плагин описывает pydantic-моделью рядом со своим кодом
+и читает через `qa_core.config.load_section("имя", Модель)`, не меняя ядро.
 
 #### Дополнительные настройки frontend
 
