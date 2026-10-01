@@ -74,6 +74,10 @@ class ExcelDataQualityChecker:
         self.df: pd.DataFrame = self._load()
         self._errors: List[CheckError] = []
 
+    def get_row_count(self) -> int:
+        """Возвращает количество строк с данными без строки заголовка."""
+        return len(self.df)
+
     # ------------------------------------------------------------------ #
     # Внутренние утилиты
     # ------------------------------------------------------------------ #
