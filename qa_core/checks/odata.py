@@ -27,7 +27,7 @@ from datetime import date, datetime
 class OdataAssertions:
     """
     Универсальные статические проверки для OData-ответов.
-    Поддерживает любые эндпоинты (Orders, Absences и др.).
+    Подходит для любых эндпоинтов.
     Не выполняет HTTP-запросов — работает только с уже полученными данными.
     """
 
@@ -126,7 +126,7 @@ class OdataAssertions:
     ):
         """
         Проверяет, что значение поля-даты находится в диапазоне [start, end].
-        Удобно для Absences: date ge 2024-10-01 and date le 2024-10-31.
+        Например, для фильтра ``date ge 2026-01-01 and date le 2026-01-31``.
         """
         def _to_date(val):
             if isinstance(val, str):
@@ -173,12 +173,17 @@ class OdataAssertions:
         )
 
     @staticmethod
-    def skip_consistency(first_page: List[dict], skipped_page: List[dict], skip: int):
-        """Сравнивает first_page[skip] со skipped_page[0] для проверки корректности смещения."""
+    def skip_consistency(
+        first_page: List[dict],
+        skipped_page: List[dict],
+        skip: int,
+        key_field: str = "Id",
+    ):
+        """Сравнивает first_page[skip] со skipped_page[0] по ключевому полю key_field."""
         if len(first_page) > skip and skipped_page:
             check.equal(
-                first_page[skip]["Id"],
-                skipped_page[0]["Id"],
+                first_page[skip][key_field],
+                skipped_page[0][key_field],
                 f"Первая запись после skip={skip} не совпадает с ожидаемой"
             )
 
