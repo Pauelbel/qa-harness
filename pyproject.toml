@@ -37,5 +37,5 @@ namespaces = true
 
 [tool.pytest.ini_options]
 addopts = "-ra"
-testpaths = ["tests"]
+testpaths = ["tests", "examples"]
 python_files = ["test_*.py"]

@@ -1,172 +1,198 @@
 # qa-core
 
-Переиспользуемое ядро тестовой инфраструктуры. Репозиторий устроен как обычная
-Python-библиотека: реализация находится в `qa_core`, её тесты — в `tests`, а
-короткие примеры публичных методов — в `Шпаргалка.md`.
+Набор готовых кирпичиков для автотестов: HTTP-клиент, PostgreSQL, проверки
+Excel и OData, плагины pytest для логов, Allure и Playwright.
 
-## Структура
+Ставите только то, что нужно проекту, подключаете одной строкой и сразу пишете
+тесты. Всё остальное (URL, токены, payload, Page Objects, бизнес-правила)
+остаётся в вашем проекте.
 
-```text
-qa_core/
-├── checks/             # проверки Excel и OData
-├── clients/            # HTTP- и PostgreSQL-клиенты
-├── sources/            # подготовка данных для checker-ов
-├── pytest_plugins/     # переиспользуемые плагины pytest
-└── config.py           # единая загрузка config.yaml
-tests/                  # тесты самого qa-core
-config.yaml             # настройки компонентов
-Шпаргалка.md             # примеры использования
-pyproject.toml          # установка, зависимости и настройки pytest
-```
-
-## Первый запуск
-
-Требуется Python 3.11 или новее. В PowerShell из корня репозитория:
+Готовые примеры кода — в [Шпаргалке](Шпаргалка.md), а запускаемые тесты-примеры —
+в папке [examples](examples). Они работают без внешних систем:
 
 ```powershell
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
+python -m pytest examples
 ```
 
-### Установка зависимостей
+## Быстрый старт
 
-Базовая установка тянет только чтение `config.yaml` и pytest. Остальное ставится
-наборами по компонентам, их можно перечислять через запятую:
+Нужен Python 3.11 или новее.
 
-| Набор | Что добавляет |
-| --- | --- |
-| `http` | `BaseHttpClient` (requests) |
-| `db` | `PostgresClient` (psycopg2) |
-| `excel` | `ExcelDataQualityChecker` и `ExcelSource` (pandas, openpyxl) |
-| `odata` | `OdataAssertions` (pytest-check) |
-| `allure` | плагин `allure_reporting` |
-| `ui` | плагин `playwright` вместе с Allure |
-| `vault` | чтение секретов из Vault (hvac) |
-
-Готовые сочетания: `backend` (`http`, `db`, `excel`, `odata`, `allure`),
-`frontend` (`ui`) и `all` (всё).
-
-```powershell
-# Только нужные компоненты
-python -m pip install -e ".[http,excel,allure]"
-
-# Всё сразу
-python -m pip install -e ".[all]"
-```
-
-Из Git на другом проекте:
+**1. Установите нужные компоненты** (названия — в таблице ниже):
 
 ```powershell
 python -m pip install "qa-core[http,excel,allure] @ git+https://github.com/Pauelbel/qa-harness.git"
 ```
 
-#### Конфигурация
+**2. Подключите плагины** в `conftest.py` в корне проекта:
 
-`config.yaml` необязателен: без файла или секции действуют значения по умолчанию.
-Каждый компонент читает только свою секцию (`http`, `browser`), лишние секции
-игнорируются, а неизвестный ключ внутри секции вызывает ошибку.
+```python
+pytest_plugins = [
+    "qa_core.pytest_plugins.logging",
+    "qa_core.pytest_plugins.allure_reporting",
+]
+```
 
-## Расширение плагинами
+**3. Пишите тест:**
 
-Своя система плагинов не нужна, используется pytest:
+```python
+from qa_core.clients.http import BaseHttpClient
 
-- **плагин проекта** — модуль, подключённый в `pytest_plugins` в `conftest.py`;
-- **плагин отдельным пакетом** — пакет с зависимостью на `qa-core` и записью
-  `[project.entry-points.pytest11]` в `pyproject.toml`, он подхватывается после `pip install`.
+def test_items():
+    with BaseHttpClient() as http:
+        response = http.get("https://service.example/api/items", timeout=10)
+    assert response.ok
+```
 
-Собственную секцию конфига плагин описывает pydantic-моделью рядом со своим кодом
-и читает через `qa_core.config.load_section("имя", Модель)`, не меняя ядро.
+Файл `config.yaml` для старта не нужен: без него работают значения по умолчанию.
 
-#### Дополнительные настройки frontend
+## Что ставить
 
-Если выбран `frontend`, после установки пакета отдельно установите браузер Chromium:
+В базовую установку входит только чтение `config.yaml` и pytest. Остальное
+выбирается наборами, их можно перечислять через запятую.
+
+| Набор | Что даёт | Импорт |
+| --- | --- | --- |
+| `http` | HTTP-клиент с логами и маскированием токенов | `qa_core.clients.http.BaseHttpClient` |
+| `db` | Запросы в PostgreSQL | `qa_core.clients.postgres.PostgresClient` |
+| `excel` | Проверка качества Excel-отчётов | `qa_core.checks.excel.ExcelDataQualityChecker`, `qa_core.sources.excel.ExcelSource` |
+| `odata` | Проверки ответов OData | `qa_core.checks.odata.OdataAssertions` |
+| `allure` | Логи упавшего теста в Allure, окружение запуска | плагин `allure_reporting` |
+| `ui` | Браузер Playwright со скриншотом и trace при падении | плагин `playwright` |
+| `vault` | Чтение секретов из HashiCorp Vault | `qa_core.secrets.SecretStore` |
+
+Готовые сочетания:
+
+| Сочетание | Состав |
+| --- | --- |
+| `backend` | `http`, `db`, `excel`, `odata`, `allure` |
+| `frontend` | `ui` |
+| `all` | всё сразу |
+
+Для набора `ui` после установки один раз скачайте браузер:
 
 ```powershell
 python -m playwright install chromium
 ```
 
-#### Дополнительные настройки Vault
-
-Набор `vault` устанавливает библиотеку `hvac` для подключения, а не сервер Vault.
-Для чтения секретов задайте `SECRETS_SOURCE=vault`, адрес `VAULT_ADDR`, точку
-монтирования `VAULT_MOUNT` и путь `VAULT_PATH`. Для авторизации укажите
-`VAULT_TOKEN` либо пару `VAULT_ROLE_ID` и `VAULT_SECRET_ID`.
-Версия KV задаётся через `VAULT_KV_VERSION` (`1` или `2`, по умолчанию `2`).
-Если секреты читаются только из переменных окружения или `.env`, набор `vault`
-не нужен.
-
-Настройки pytest находятся в `pyproject.toml`. Для запуска проверок самого ядра установите
-backend-зависимости и запустите:
+### Установка для разработки самого qa-core
 
 ```powershell
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e ".[all]"
 python -m pytest
 ```
 
-## Что относится к ядру
+## Плагины pytest
 
-Ядро разделено на простые слои:
+Плагины подключаются списком в `conftest.py`. Каждый работает сам по себе, без
+остальных.
 
-1. `clients` подключаются к HTTP, PostgreSQL и другим транспортам;
-2. `sources` приводят полученные данные к входу, понятному checker-у;
-3. `checks` проверяют данные и не знают, откуда они пришли;
-4. проектные `tests` собирают эти части как кубики.
+| Плагин | Что делает | Нужен набор |
+| --- | --- | --- |
+| `qa_core.pytest_plugins.logging` | Логи в консоль и в файл `logs/pytest_<окружение>.log` | — |
+| `qa_core.pytest_plugins.allure_reporting` | Прикладывает логи к упавшему тесту, пишет `environment.xml` | `allure` |
+| `qa_core.pytest_plugins.playwright` | Фикстура `browser_page`: один браузер на запуск, чистая страница на тест; скриншот и trace при падении | `ui` |
 
-- `BaseHttpClient` — отправка HTTP-запросов и диагностическое логирование;
-- `PostgresClient` — выполнение параметризованных запросов к PostgreSQL;
-- `ExcelSource` — подготовка Excel из файла, байтов или HTTP-ответа с сохранением исходного имени;
-- `ExcelDataQualityChecker` — последовательные проверки Excel-отчётов;
-- `OdataAssertions` — проверки структуры и поведения OData-ответов;
-- `logging` — единый формат консольных и файловых логов pytest;
-- `allure_reporting` — вложение логов упавшего теста в Allure;
-- `playwright` — browser lifecycle, скриншот и trace при падении frontend-теста;
-- `load_settings` — единая загрузка и проверка корневого YAML.
+Имя окружения для логов и Allure берётся из `--qa-environment=dev` или из
+переменной `TEST_ENV`.
 
-Клиенты конкретных систем, URL, токены, payload, Page Objects и бизнес-тесты
-остаются в репозитории подключающего проекта.
+## Настройка через config.yaml
 
-## Использование в другом проекте
+Файл необязателен и лежит в папке, откуда запускается pytest. Каждый компонент
+читает только свою секцию, остальные игнорирует.
 
-Установите пакет из внутреннего registry или Git, затем импортируйте нужный
-компонент:
+```yaml
+http:
+  timeout: 30                             # секунд на ответ, если в вызове не указан свой
+  max_logged_response_body_length: 2000   # сколько символов ответа писать в лог
+  sensitive_query_parameters: [token, api_key, password]   # значения станут ***
 
-```python
-from qa_core.clients.http import BaseHttpClient
-from qa_core.checks.excel import ExcelDataQualityChecker
+browser:
+  engine: chromium        # chromium, firefox или webkit
+  headless: true
+  width: 1920
+  height: 1080
+  ignore_https_errors: true
 ```
 
-### Подключение pytest-плагинов
+Если секции нет — действуют значения по умолчанию. Если нет самого файла, в логе
+один раз появится предупреждение с путём (так заметен запуск не из той папки).
+Опечатка в названии ключа внутри секции даёт понятную ошибку с именем секции.
 
-Добавьте нужные плагины в корневой `conftest.py` вашего проекта:
+## Секреты
 
-```python
-pytest_plugins = [
-    "qa_core.pytest_plugins.logging",           # консольные и файловые логи
-    "qa_core.pytest_plugins.allure_reporting",  # логи и Allure-отчёт
-    "qa_core.pytest_plugins.playwright",         # frontend-фикстура browser_page
-]
+`SecretStore` читает пароли и токены из переменных окружения или из Vault. Он
+никогда не переходит на другой источник сам: если ключа нет, вы получите ошибку
+с его именем.
+
+| Переменная | Значение |
+| --- | --- |
+| `SECRETS_SOURCE` | `env` (по умолчанию) или `vault` |
+| `VAULT_ADDR`, `VAULT_MOUNT`, `VAULT_PATH` | где лежит секрет в Vault |
+| `VAULT_KV_VERSION` | `1` или `2` (по умолчанию `2`) |
+| `VAULT_TOKEN` | либо пара `VAULT_ROLE_ID` и `VAULT_SECRET_ID` |
+| `VAULT_CACERT` | путь к своему CA; `VAULT_VERIFY=false` отключает проверку TLS |
+
+Пример использования — в [Шпаргалке](Шпаргалка.md#секреты).
+
+## Свой плагин
+
+Отдельной системы плагинов нет: используется pytest. Есть два способа.
+
+**Плагин внутри проекта.** Обычный модуль с фикстурами и хуками. Подключите его
+в `pytest_plugins` в `conftest.py` рядом с плагинами qa-core.
+
+**Плагин отдельным пакетом** (например, `qa-core-jira`). В его `pyproject.toml`
+укажите зависимость на `qa-core` и точку входа:
+
+```toml
+[project.entry-points.pytest11]
+qa_core_jira = "qa_core_jira.plugin"
 ```
 
-Если frontend-тестов нет, удалите из списка строку с `playwright`.
+После `pip install` такой плагин подключается сам.
 
-После этого в frontend-тестах доступна готовая фикстура `browser_page`:
+Собственную секцию в `config.yaml` плагин описывает моделью рядом со своим
+кодом и читает так:
 
 ```python
-import allure
+from pydantic import BaseModel, ConfigDict
+from qa_core.config import load_section
 
 
-@allure.epic("Frontend")
-@allure.title("Проверка главной страницы")
-def test_home_page(browser_page):
-    with allure.step("Открыть главную страницу"):
-        browser_page.goto("https://example.com")
+class JiraSettings(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    url: str = "https://jira.example"
 
-    with allure.step("Проверить заголовок"):
-        assert browser_page.title()
+
+settings = load_section("jira", JiraSettings)
 ```
 
-`logging` настраивает вывод и пишет файл в папку `logs` подключившего проекта,
-`allure_reporting` прикладывает логи к упавшему тесту, а `playwright` создаёт
-браузерную страницу и сохраняет скриншот и trace при падении.
+Ядро менять не нужно. Полный пример — в [Шпаргалке](Шпаргалка.md#свой-плагин).
 
-Практические примеры находятся в [Шпаргалка.md](Шпаргалка.md).
+## Как устроено ядро
+
+Ядро состоит из четырёх слоёв, и каждый знает только о своём:
+
+1. `clients` получают данные: HTTP, PostgreSQL.
+2. `sources` приводят полученное к виду, понятному проверкам (например, сохраняют Excel).
+3. `checks` проверяют данные и не знают, откуда они взялись.
+4. Ваши тесты собирают эти части вместе.
+
+```text
+qa_core/
+├── checks/            # проверки Excel и OData
+├── clients/           # HTTP- и PostgreSQL-клиенты
+├── sources/           # подготовка данных для проверок
+├── pytest_plugins/    # плагины pytest: logging, allure_reporting, playwright
+├── config.py          # чтение секций config.yaml
+└── secrets.py         # чтение секретов из env или Vault
+examples/              # запускаемые примеры использования
+config.yaml            # пример настроек
+Шпаргалка.md           # примеры кода
+```
+
+Что остаётся в вашем проекте: URL и авторизация, payload, SQL, Page Objects,
+модели ответов и сами бизнес-тесты.

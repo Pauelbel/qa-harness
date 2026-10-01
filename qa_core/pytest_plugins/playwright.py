@@ -1,8 +1,10 @@
 """Playwright lifecycle с диагностикой Allure.
 
 Зачем нужен файл:
-    Плагин даёт тесту готовую фикстуру ``browser_page``, закрывает
-    браузер после теста, а при падении прикладывает скриншот и trace.
+    Плагин даёт тесту готовую фикстуру ``browser_page``. Браузер запускается
+    один раз на весь запуск, а каждый тест получает свой чистый контекст и
+    страницу (cookies и хранилище не переходят между тестами). При падении
+    теста прикладываются скриншот и trace.
 
 Как подключить:
     pytest_plugins = [
@@ -11,19 +13,24 @@
     ]
 
 Проект может переопределить фикстуру ``qa_browser_settings``, если берёт
-настройки не из корневого ``config.yaml``.
+настройки не из корневого ``config.yaml``. Переопределённая фикстура должна
+иметь ``scope="session"``, потому что от неё зависит общий браузер.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import Literal
 
 import allure
 import pytest
-from playwright.sync_api import Page, Playwright
+from playwright.sync_api import Browser, Page, Playwright
 from pydantic import BaseModel, ConfigDict, Field
 
 from qa_core.config import load_section
+from qa_core.pytest_plugins._shared import (
+    pytest_runtest_makereport,  # noqa: F401 — хук регистрируется как часть плагина
+)
 
 
 class BrowserSettings(BaseModel):
@@ -38,23 +45,33 @@ class BrowserSettings(BaseModel):
     ignore_https_errors: bool = True
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def qa_browser_settings() -> BrowserSettings:
     """Возвращает настройки Playwright; может быть переопределена проектом."""
     return load_section("browser", BrowserSettings)
 
 
+@pytest.fixture(scope="session")
+def qa_browser(
+    playwright: Playwright,
+    qa_browser_settings: BrowserSettings,
+) -> Iterator[Browser]:
+    """Запускает браузер один раз на весь запуск и закрывает его в конце."""
+    browser_type = getattr(playwright, qa_browser_settings.engine)
+    browser = browser_type.launch(headless=qa_browser_settings.headless)
+    yield browser
+    browser.close()
+
+
 @pytest.fixture
 def browser_page(
-    playwright: Playwright,
+    qa_browser: Browser,
     qa_browser_settings: BrowserSettings,
     request,
     tmp_path,
-) -> Page:
-    """Запускает браузер и прикладывает диагностику при падении."""
-    browser_type = getattr(playwright, qa_browser_settings.engine)
-    browser = browser_type.launch(headless=qa_browser_settings.headless)
-    context = browser.new_context(
+) -> Iterator[Page]:
+    """Открывает чистую страницу и прикладывает диагностику при падении."""
+    context = qa_browser.new_context(
         viewport={
             "width": qa_browser_settings.width,
             "height": qa_browser_settings.height,
@@ -94,4 +111,3 @@ def browser_page(
             context.tracing.stop()
     finally:
         context.close()
-        browser.close()

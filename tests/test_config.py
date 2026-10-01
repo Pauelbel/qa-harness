@@ -81,3 +81,17 @@ def test_section_must_be_mapping(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="должна быть словарём"):
         load_section("http", HttpSettings, config_path)
+
+
+@allure.epic("Ядро")
+@allure.title("Отсутствующий файл конфигурации даёт предупреждение в логе")
+def test_missing_file_logs_warning(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    missing = tmp_path / "нет_такого.yaml"
+
+    with caplog.at_level("WARNING", logger="qa_core.config"):
+        load_section("http", HttpSettings, missing)
+        load_section("http", HttpSettings, missing)
+
+    messages = [r.getMessage() for r in caplog.records if "не найден" in r.getMessage()]
+    assert len(messages) == 1  # повторное чтение того же файла не дублирует предупреждение
+    assert str(missing) in messages[0]

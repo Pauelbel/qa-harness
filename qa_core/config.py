@@ -7,7 +7,8 @@
 
 Правила:
     - ``config.yaml`` необязателен: если файла или секции нет, используются
-      значения по умолчанию из модели;
+      значения по умолчанию из модели, а об отсутствующем файле один раз
+      пишется предупреждение в лог;
     - неизвестные секции игнорируются, они принадлежат другим компонентам;
     - неизвестный ключ внутри секции — ошибка, чтобы опечатки не терялись.
 
@@ -22,12 +23,15 @@
 
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, TypeVar
 
 import yaml
 from pydantic import BaseModel, ValidationError
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG_NAME = "config.yaml"
 
@@ -57,6 +61,12 @@ def load_section(
 def _read_yaml(path: Path) -> dict[str, Any]:
     """Читает каждый файл один раз; отсутствующий файл равен пустой конфигурации."""
     if not path.is_file():
+        # Предупреждение выходит один раз на файл благодаря кэшу: так запуск
+        # не из той папки не остаётся незамеченным.
+        logger.warning(
+            "Файл конфигурации не найден: %s. Используются значения по умолчанию.",
+            path,
+        )
         return {}
     with path.open(encoding="utf-8") as config_file:
         content = yaml.safe_load(config_file) or {}

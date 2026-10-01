@@ -18,16 +18,15 @@ from xml.etree import ElementTree
 import allure
 import pytest
 
+from qa_core.pytest_plugins._shared import (
+    add_environment_option,
+    pytest_runtest_makereport,  # noqa: F401 — хук регистрируется как часть плагина
+)
+
 
 def pytest_addoption(parser) -> None:
     """Добавляет необязательное имя окружения в командную строку pytest."""
-    group = parser.getgroup("qa-core")
-    group.addoption(
-        "--qa-environment",
-        action="store",
-        default=None,
-        help="Имя окружения для environment.xml в Allure-результатах",
-    )
+    add_environment_option(parser)
 
 
 def pytest_sessionfinish(session, exitstatus) -> None:
@@ -50,15 +49,6 @@ def pytest_sessionfinish(session, exitstatus) -> None:
         encoding="utf-8",
         xml_declaration=True,
     )
-
-
-@pytest.hookimpl(hookwrapper=True)
-def pytest_runtest_makereport(item, call):
-    """Сохраняет отчёт каждой стадии на объекте теста."""
-    del call
-    outcome = yield
-    report = outcome.get_result()
-    setattr(item, f"report_{report.when}", report)
 
 
 @pytest.fixture(autouse=True)

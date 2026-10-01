@@ -85,50 +85,49 @@ class ExcelDataQualityChecker:
         """Загружает xlsx и выполняет базовую очистку строковых ячеек.
 
         Что делает:
-            - Читает Excel через ``openpyxl``.
+            - Читает Excel через ``openpyxl``; пустыми считаются только пустые
+              ячейки, а текст ``"None"``, ``"nan"`` или ``"NA"`` остаётся значением.
             - Чистит названия колонок (strip).
-            - Заменяет ``NaN``, ``"nan"``, ``"None"``, ``"NaT"`` на ``pd.NA``.
-            - Обрезает пробелы по краям во всех строковых ячейках.
+            - Обрезает пробелы по краям во всех текстовых ячейках.
+            - Заменяет пустые и состоящие из пробелов ячейки на ``pd.NA``.
         """
-        df = pd.read_excel(self.path, engine="openpyxl")
+        # По умолчанию pandas сам превращает тексты вроде "None" и "nan" в пропуски,
+        # из-за чего реальное значение в отчёте выглядело бы как пустая ячейка.
+        df = pd.read_excel(
+            self.path,
+            engine="openpyxl",
+            keep_default_na=False,
+            na_values=[""],
+        )
         df.columns = [str(c).strip() for c in df.columns]
 
-        # Заменяем float NaN на pd.NA для всего DataFrame
-        df = df.replace(float('nan'), pd.NA)
-
         for col in df.columns:
-            # Если колонка object/string — чистим строки
-            if df[col].dtype == 'object':
-                df[col] = (
-                    df[col]
-                    .astype(str)
-                    .replace("nan", "")
-                    .replace("None", "")
-                    .replace("NaT", "")
-                    .replace("<NA>", "")
-                    .str.strip()
-                    .replace("", pd.NA)
-                )
+            if self._is_text(df[col]):
+                is_missing = df[col].isna()
+                text = df[col].astype(str).str.strip()
+                df[col] = text.mask(is_missing | (text == ""), pd.NA)
             else:
-                # Для числовых/других типов — просто NaN -> pd.NA
-                df[col] = df[col].replace(float('nan'), pd.NA)
+                # Для числовых и других типов — просто NaN -> pd.NA
+                df[col] = df[col].replace(float("nan"), pd.NA)
 
         return df
+
+    @staticmethod
+    def _is_text(series: pd.Series) -> bool:
+        """Определяет текстовую колонку: pandas 3 читает текст как ``str``, а смешанные данные как ``object``."""
+        return series.dtype == "object" or isinstance(series.dtype, pd.StringDtype)
 
     def _is_empty(self, series: pd.Series) -> pd.Series:
         """Возвращает булеву маску: True там, где значение пустое.
 
-        Пустыми считаются: ``pd.NA``, ``None``, ``NaN``, ``""``, 
-        строки из пробелов, ``"nan"``, ``"None"``, ``"NaT"``, ``"<NA>"``.
+        Пустыми считаются: ``pd.NA``, ``None``, ``NaN``, ``""`` и строки из
+        пробелов. Текст ``"None"`` или ``"nan"`` — обычное значение, не пустота.
         """
-        # Проверяем isna() для всех типов (ловит pd.NA, np.nan, None)
+        # isna() ловит pd.NA, np.nan и None для любых типов
         is_na = series.isna()
 
-        # Для строковых — дополнительно проверяем строковые представления
-        if series.dtype == 'object':
-            str_vals = series.astype(str).str.strip()
-            is_empty_str = str_vals.isin(["", "nan", "None", "NaT", "<NA>"])
-            return is_na | is_empty_str
+        if self._is_text(series):
+            return is_na | (series.astype(str).str.strip() == "")
 
         return is_na
 
@@ -214,7 +213,7 @@ class ExcelDataQualityChecker:
 
         Что проверяет:
             Для каждой строки и каждого столбца из ``columns`` проверяет,
-            что значение не пустое (не ``NaN``, не пустая строка, не ``"nan"``).
+            что значение не пустое (не ``NaN`` и не пустая строка).
 
         Параметры:
             columns: Список имён столбцов для проверки.

@@ -7,3 +7,4 @@ build/
 dist/
 allure-results/
 allure-report/
+logs/
