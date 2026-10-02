@@ -4,19 +4,35 @@
 Excel и OData, плагины pytest для логов, Allure и Playwright.
 
 Ставите только то, что нужно проекту, подключаете одной строкой и сразу пишете
-тесты. Всё остальное (URL, токены, payload, Page Objects, бизнес-правила)
+тесты. Всё остальное (URL, токены, payload, локаторы, бизнес-правила)
 остаётся в вашем проекте.
 
+**Новичку:** начните со страницы [Начало.md](Начало.md): за 15 минут вы запустите примеры и
+свой первый тест. Правила оформления тестов — в [Правила.md](Правила.md).
+
 Готовые примеры кода — в [Шпаргалке](Шпаргалка.md), а запускаемые тесты-примеры —
-в папке [examples](examples). Они работают без внешних систем:
+в папке [examples](examples/README.md). Они работают без внешних систем:
 
 ```powershell
 python -m pytest examples
 ```
 
+Примеры с браузером и PostgreSQL по умолчанию пропускаются: для браузера установите
+Chromium и задайте `EXAMPLE_UI=1`, для базы — переменные из
+[test_07_postgres_and_browser.py](examples/test_07_postgres_and_browser.py).
+
 ## Быстрый старт
 
 Нужен Python 3.11 или новее.
+
+Самый короткий путь — команда `qa-core init`: она создаст заготовку проекта (`conftest.py`,
+`config.yaml`, `pytest.ini`, `requirements.txt` и по рабочему тесту на каждый компонент):
+
+```powershell
+qa-core init --components http,excel,allure
+```
+
+Ниже то же самое вручную.
 
 **1. Установите нужные компоненты** (названия — в таблице ниже):
 
@@ -93,7 +109,7 @@ python -m pytest
 | --- | --- | --- |
 | `qa_core.pytest_plugins.logging` | Логи в консоль и в файл `logs/pytest_<окружение>.log` | — |
 | `qa_core.pytest_plugins.allure_reporting` | Прикладывает логи к упавшему тесту, пишет `environment.xml` | `allure` |
-| `qa_core.pytest_plugins.playwright` | Фикстура `browser_page`: один браузер на запуск, чистая страница на тест; скриншот и trace при падении | `ui` |
+| `qa_core.pytest_plugins.playwright` | Фикстура `browser_page`: один браузер на запуск, чистая страница на тест (вход можно сделать один раз через `qa_storage_state`); скриншот и trace при падении | `ui` |
 
 Имя окружения для логов и Allure берётся из `--qa-environment=dev` или из
 переменной `TEST_ENV`.
@@ -187,6 +203,7 @@ qa_core/
 ├── clients/           # HTTP- и PostgreSQL-клиенты
 ├── sources/           # подготовка данных для проверок
 ├── pytest_plugins/    # плагины pytest: logging, allure_reporting, playwright
+├── cli.py             # команда qa-core init
 ├── config.py          # чтение секций config.yaml
 └── secrets.py         # чтение секретов из env или Vault
 examples/              # запускаемые примеры использования
@@ -194,5 +211,5 @@ config.yaml            # пример настроек
 Шпаргалка.md           # примеры кода
 ```
 
-Что остаётся в вашем проекте: URL и авторизация, payload, SQL, Page Objects,
+Что остаётся в вашем проекте: URL и авторизация, payload, SQL, локаторы,
 модели ответов и сами бизнес-тесты.

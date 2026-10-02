@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Reusable HTTP, PostgreSQL, OData and data-quality test infrastructure"
 readme = "README.md"
 requires-python = ">=3.11"
+
 # Только то, что нужно любому компоненту: чтение config.yaml и pytest.
 dependencies = [
     "pydantic>=2.13",
@@ -29,6 +30,10 @@ vault = ["hvac>=2.0"]
 backend = ["qa-core[http,db,excel,odata,allure]"]
 frontend = ["qa-core[ui]"]
 all = ["qa-core[http,db,excel,odata,allure,ui,vault]"]
+
+# Команда qa-core init создаёт заготовку проекта автотестов.
+[project.scripts]
+qa-core = "qa_core.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

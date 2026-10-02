@@ -12,6 +12,9 @@
         "qa_core.pytest_plugins.playwright",
     ]
 
+Чтобы тесты начинались уже после входа в систему, проект переопределяет
+фикстуру ``qa_storage_state`` (пример — в examples/test_06_ui_login.py).
+
 Проект может переопределить фикстуру ``qa_browser_settings``, если берёт
 настройки не из корневого ``config.yaml``. Переопределённая фикстура должна
 иметь ``scope="session"``, потому что от неё зависит общий браузер.
@@ -63,15 +66,28 @@ def qa_browser(
     browser.close()
 
 
+@pytest.fixture(scope="session")
+def qa_storage_state() -> dict | str | None:
+    """Состояние браузера (cookies, localStorage) для каждой страницы теста.
+
+    По умолчанию ``None``: страница чистая. Чтобы войти в систему один раз и
+    использовать вход во всех тестах, проект переопределяет фикстуру и
+    возвращает результат ``context.storage_state()``.
+    """
+    return None
+
+
 @pytest.fixture
 def browser_page(
     qa_browser: Browser,
     qa_browser_settings: BrowserSettings,
+    qa_storage_state: dict | str | None,
     request,
     tmp_path,
 ) -> Iterator[Page]:
     """Открывает чистую страницу и прикладывает диагностику при падении."""
     context = qa_browser.new_context(
+        storage_state=qa_storage_state,
         viewport={
             "width": qa_browser_settings.width,
             "height": qa_browser_settings.height,
