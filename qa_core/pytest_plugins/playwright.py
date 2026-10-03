@@ -4,8 +4,13 @@
     Плагин даёт тесту готовую фикстуру ``browser_page``. Браузер запускается
     один раз на весь запуск, а каждый тест получает свой чистый контекст и
     страницу (cookies и хранилище не переходят между тестами). При падении
+<<<<<<< HEAD
     теста скриншот и trace сохраняются в ``test-artifacts/``; если установлен
     allure, они прикладываются и к отчёту. Без allure плагин работает так же.
+=======
+    теста сохраняются скриншот и trace, а подключённые отчётчики получают
+    файлы через общий pytest-hook.
+>>>>>>> e262d538f52be49964d4cce50c8221649f21d97e
 
 Как подключить:
     pytest_plugins = [
@@ -22,9 +27,13 @@
 
 from __future__ import annotations
 
+<<<<<<< HEAD
 import hashlib
 import logging
 import re
+=======
+import logging
+>>>>>>> e262d538f52be49964d4cce50c8221649f21d97e
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Literal
@@ -34,7 +43,14 @@ from playwright.sync_api import Browser, Page, Playwright
 from pydantic import BaseModel, ConfigDict, Field
 
 from qa_core.config import load_section
+<<<<<<< HEAD
 
+=======
+from qa_core.diagnostics import DiagnosticArtifact
+
+
+pytest_plugins = ["qa_core.pytest_plugins.diagnostics"]
+>>>>>>> e262d538f52be49964d4cce50c8221649f21d97e
 logger = logging.getLogger(__name__)
 
 
@@ -156,6 +172,7 @@ def browser_page(
         context.close()
 
 
+<<<<<<< HEAD
 def _publish(path: Path, name: str, media_type: str, extension: str) -> None:
     """Пишет путь в лог и прикладывает файл к Allure, если он установлен."""
     logger.info("%s: %s", name, path)
@@ -164,3 +181,9 @@ def _publish(path: Path, name: str, media_type: str, extension: str) -> None:
     except ImportError:
         return
     allure.attach.file(str(path), name=name, attachment_type=media_type, extension=extension)
+=======
+def _publish_artifact(request, artifact: DiagnosticArtifact) -> None:
+    """Сообщает путь в логах и передаёт файл подключённым отчётчикам."""
+    logger.info("%s: %s", artifact.name, artifact.path)
+    request.config.hook.pytest_qa_attach_artifact(item=request.node, artifact=artifact)
+>>>>>>> e262d538f52be49964d4cce50c8221649f21d97e

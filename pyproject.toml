@@ -8,8 +8,17 @@ version = "0.2.0"
 description = "Переносимое ядро автотестов: клиенты, проверки, плагины pytest"
 requires-python = ">=3.11"
 
+<<<<<<< HEAD
 # Нужно любому компоненту: чтение config.yaml и pytest.
 dependencies = ["pydantic>=2.13", "pytest>=8", "PyYAML>=6.0"]
+=======
+# Только то, что нужно любому компоненту: чтение config.yaml и pytest.
+dependencies = [
+    "pydantic>=2.13",
+    "pytest>=8",
+    "PyYAML>=6.0",
+]
+>>>>>>> e262d538f52be49964d4cce50c8221649f21d97e
 
 # Ставьте только нужное: pip install "qa-core[http,ui] @ git+https://github.com/Pauelbel/qa-harness.git"
 [project.optional-dependencies]
@@ -20,7 +29,19 @@ odata = ["pytest-check>=2.9"]
 allure = ["allure-pytest>=2.16"]
 ui = ["pytest-playwright"]
 vault = ["hvac>=2.0"]
+<<<<<<< HEAD
 dev = ["ruff>=0.6"]
+=======
+
+# Готовые сочетания.
+backend = ["qa-core[http,db,excel,odata,allure]"]
+frontend = ["qa-core[ui]"]
+all = ["qa-core[http,db,excel,odata,allure,ui,vault]"]
+
+# Команда qa-core init создаёт заготовку проекта автотестов.
+[project.scripts]
+qa-core = "qa_core.cli:main"
+>>>>>>> e262d538f52be49964d4cce50c8221649f21d97e
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -20,7 +20,28 @@ from xml.etree import ElementTree
 import allure
 import pytest
 
+<<<<<<< HEAD
 from qa_core.pytest_plugins.logging import add_environment_option
+=======
+from qa_core.diagnostics import DiagnosticArtifact
+from qa_core.pytest_plugins._shared import (
+    add_environment_option,
+    pytest_runtest_makereport,  # noqa: F401 — хук регистрируется как часть плагина
+)
+
+
+pytest_plugins = ["qa_core.pytest_plugins.diagnostics"]
+
+
+def pytest_qa_attach_artifact(item, artifact: DiagnosticArtifact) -> None:
+    """Прикладывает готовый файл от любого диагностического расширения."""
+    allure.attach.file(
+        str(artifact.path),
+        name=artifact.name,
+        attachment_type=artifact.media_type,
+        extension=artifact.extension,
+    )
+>>>>>>> e262d538f52be49964d4cce50c8221649f21d97e
 
 
 def pytest_addoption(parser) -> None:
