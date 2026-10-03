@@ -68,7 +68,6 @@ class BaseHttpClient:
         max_logged_response_body_length: int | None = None,
     ) -> None:
         settings = load_section("http", HttpSettings, config_path)
-<<<<<<< HEAD
         # Параметры конструктора важнее значений из config.yaml.
         if sensitive_query_parameters is not None:
             settings = settings.model_copy(
@@ -87,23 +86,6 @@ class BaseHttpClient:
         self._timeout = settings.timeout
         self._sensitive_query_parameters = settings.sensitive_query_parameters
         self._max_logged_response_body_length = settings.max_logged_response_body_length
-=======
-        self._timeout = settings.timeout
-        # Явно переданные параметры важнее значений из config.yaml.
-        if sensitive_query_parameters is None:
-            sensitive_query_parameters = settings.sensitive_query_parameters
-        if max_logged_response_body_length is None:
-            max_logged_response_body_length = (
-                settings.max_logged_response_body_length
-            )
-        if max_logged_response_body_length < 0:
-            raise ValueError("Длина тела ответа в логе не может быть отрицательной")
-
-        self._sensitive_query_parameters = frozenset(
-            name.lower() for name in sensitive_query_parameters
-        )
-        self._max_logged_response_body_length = max_logged_response_body_length
->>>>>>> e262d538f52be49964d4cce50c8221649f21d97e
         self.session = session or requests.Session()
         self.print_response = print_response
         self._owns_session = session is None
