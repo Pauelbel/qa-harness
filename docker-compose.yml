@@ -1,0 +1,13 @@
+# Запуск: docker compose run --rm qa            (все тесты)
+#         docker compose run --rm qa pytest -m smoke
+services:
+  qa:
+    build: .
+    volumes:
+      # Код и результаты (logs/, test-artifacts/, allure-results/) лежат на вашем
+      # компьютере: правки видны в контейнере сразу, без пересборки образа.
+      - .:/work
+    environment:
+      # Переменные из вашего окружения или файла .env передаются в тесты.
+      - BASE_URL
+      - TEST_ENV

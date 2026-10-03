@@ -58,7 +58,7 @@ def _read_vault() -> Mapping[str, object]:
     try:
         import hvac
     except ImportError as exc:
-        raise SecretError("Для Vault установите дополнительную зависимость 'qa-core[vault]'") from exc
+        raise SecretError("Для Vault установите пакет 'hvac'") from exc
 
     verify_setting = os.getenv("VAULT_VERIFY", "true").lower()
     if verify_setting not in {"true", "false"}:

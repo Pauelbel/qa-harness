@@ -68,11 +68,11 @@ class Browser:
     def close(self):
         record("browser.close")
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def playwright():
     return SimpleNamespace(chromium=SimpleNamespace(launch=lambda **kwargs: Browser()))
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def qa_browser_settings():
     return SimpleNamespace(engine="chromium", headless=True, width=800,
                            height=600, ignore_https_errors=False)

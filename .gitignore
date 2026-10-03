@@ -2,13 +2,10 @@ __pycache__/
 .pytest_cache/
 .venv/
 .env
-<<<<<<< HEAD
 test-artifacts/
-=======
 *.egg-info/
 build/
 dist/
 allure-results/
 allure-report/
 logs/
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f

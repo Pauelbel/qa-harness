@@ -1,16 +1,11 @@
 """Жизненный цикл Playwright с независимой файловой диагностикой.
 
 Зачем нужен файл:
-<<<<<<< HEAD
-    Плагин даёт тесту готовую фикстуру ``browser_page``, закрывает
-    браузер после теста, а при падении сохраняет скриншот и trace.
-    Подключённые отчётчики получают файлы через общий pytest-hook.
-=======
     Плагин даёт тесту готовую фикстуру ``browser_page``. Браузер запускается
     один раз на весь запуск, а каждый тест получает свой чистый контекст и
     страницу (cookies и хранилище не переходят между тестами). При падении
-    теста прикладываются скриншот и trace.
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
+    теста скриншот и trace сохраняются в ``test-artifacts/``; если установлен
+    allure, они прикладываются и к отчёту. Без allure плагин работает так же.
 
 Как подключить:
     pytest_plugins = [
@@ -27,31 +22,20 @@
 
 from __future__ import annotations
 
-<<<<<<< HEAD
+import hashlib
 import logging
-=======
+import re
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Literal
 
-import allure
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
 import pytest
 from playwright.sync_api import Browser, Page, Playwright
 from pydantic import BaseModel, ConfigDict, Field
 
-<<<<<<< HEAD
-from qa_core.config import BrowserSettings, load_settings
-from qa_core.diagnostics import DiagnosticArtifact
-
-
-pytest_plugins = ["qa_core.pytest_plugins.diagnostics"]
-logger = logging.getLogger(__name__)
-=======
 from qa_core.config import load_section
-from qa_core.pytest_plugins._shared import (
-    pytest_runtest_makereport,  # noqa: F401 — хук регистрируется как часть плагина
-)
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
+
+logger = logging.getLogger(__name__)
 
 
 class BrowserSettings(BaseModel):
@@ -64,6 +48,33 @@ class BrowserSettings(BaseModel):
     width: int = Field(default=1920, gt=0)
     height: int = Field(default=1080, gt=0)
     ignore_https_errors: bool = True
+
+
+def pytest_addoption(parser) -> None:
+    parser.getgroup("qa-core").addoption(
+        "--qa-artifacts-dir",
+        default="test-artifacts",
+        help="Куда сохранять скриншоты и trace упавших тестов",
+    )
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """Сохраняет отчёт стадии на тесте как ``report_<стадия>``."""
+    del call
+    outcome = yield
+    setattr(item, f"report_{outcome.get_result().when}", outcome.get_result())
+
+
+@pytest.fixture
+def qa_artifact_dir(request) -> Path:
+    """Отдельная папка для файлов одного теста (создаётся только при сбое)."""
+    root = Path(request.config.getoption("--qa-artifacts-dir"))
+    if not root.is_absolute():
+        root = request.config.rootpath / root
+    name = re.sub(r"[^\w.-]+", "_", request.node.name)[:80]
+    digest = hashlib.sha256(request.node.nodeid.encode("utf-8")).hexdigest()[:12]
+    return root / f"{name}-{digest}"
 
 
 @pytest.fixture(scope="session")
@@ -101,17 +112,9 @@ def browser_page(
     qa_browser_settings: BrowserSettings,
     qa_storage_state: dict | str | None,
     request,
-<<<<<<< HEAD
     qa_artifact_dir,
-) -> Page:
-    """Запускает браузер и сохраняет диагностику при падении setup или call."""
-    browser_type = getattr(playwright, qa_browser_settings.engine)
-    browser = browser_type.launch(headless=qa_browser_settings.headless)
-    context = None
-=======
-    tmp_path,
 ) -> Iterator[Page]:
-    """Открывает чистую страницу и прикладывает диагностику при падении."""
+    """Открывает чистую страницу и сохраняет диагностику при падении."""
     context = qa_browser.new_context(
         storage_state=qa_storage_state,
         viewport={
@@ -120,27 +123,7 @@ def browser_page(
         },
         ignore_https_errors=qa_browser_settings.ignore_https_errors,
     )
-    context.tracing.start(screenshots=True, snapshots=True, sources=True)
-    page = context.new_page()
-
-    yield page
-
-    setup_report = getattr(request.node, "report_setup", None)
-    call_report = getattr(request.node, "report_call", None)
-    test_failed = any(
-        report is not None and report.failed
-        for report in (setup_report, call_report)
-    )
-
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
     try:
-        context = browser.new_context(
-            viewport={
-                "width": qa_browser_settings.width,
-                "height": qa_browser_settings.height,
-            },
-            ignore_https_errors=qa_browser_settings.ignore_https_errors,
-        )
         context.tracing.start(screenshots=True, snapshots=True, sources=True)
         page = context.new_page()
 
@@ -162,36 +145,22 @@ def browser_page(
                 except Exception:
                     logger.exception("Не удалось сохранить скриншот при падении")
                 else:
-                    _publish_artifact(
-                        request,
-                        DiagnosticArtifact(
-                            screenshot_path, "Скриншот при падении", "image/png", "png"
-                        ),
-                    )
+                    _publish(screenshot_path, "Скриншот при падении", "image/png", "png")
 
             trace_path = qa_artifact_dir / "playwright-trace.zip"
             context.tracing.stop(path=trace_path)
-            _publish_artifact(
-                request,
-                DiagnosticArtifact(
-                    trace_path, "Playwright trace", "application/zip", "zip"
-                ),
-            )
+            _publish(trace_path, "Playwright trace", "application/zip", "zip")
         else:
             context.tracing.stop()
     finally:
-<<<<<<< HEAD
-        try:
-            if context is not None:
-                context.close()
-        finally:
-            browser.close()
-
-
-def _publish_artifact(request, artifact: DiagnosticArtifact) -> None:
-    """Сообщает путь в логах и передаёт файл подключённым отчётчикам."""
-    logger.info("%s: %s", artifact.name, artifact.path)
-    request.config.hook.pytest_qa_attach_artifact(item=request.node, artifact=artifact)
-=======
         context.close()
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
+
+
+def _publish(path: Path, name: str, media_type: str, extension: str) -> None:
+    """Пишет путь в лог и прикладывает файл к Allure, если он установлен."""
+    logger.info("%s: %s", name, path)
+    try:
+        import allure
+    except ImportError:
+        return
+    allure.attach.file(str(path), name=name, attachment_type=media_type, extension=extension)

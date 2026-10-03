@@ -1,29 +1,30 @@
-"""Общие настройки примеров: подключение плагинов и демо-сервер.
+"""Подключение плагинов и демо-сервер для примеров.
 
-Примеры работают без внешних систем. Запуск из корня репозитория:
-
-    python -m pytest examples
-
-Здесь же показано, как проект подключает плагины qa-core: списком в conftest.py.
+Примеры работают без внешних систем: сервер поднимается в тестах сам.
+Запуск из корня репозитория:  python -m pytest examples
 """
 
 import json
+import logging
+from collections.abc import Callable, Iterator
 from html import escape
-from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from io import BytesIO
 from itertools import count
 from threading import Lock, Thread
-from urllib.parse import parse_qs, quote
+from uuid import uuid4
 
-import pandas as pd
 import pytest
 
+from qa_core.clients.http import BaseHttpClient
+
+logger = logging.getLogger(__name__)
+
+# Так проект подключает плагины ядра. Не нужен плагин: удалите строку.
+# Нужен Allure: добавьте "qa_core.pytest_plugins.allure_reporting" (и pip install allure-pytest).
 pytest_plugins = [
-    "qa_core.pytest_plugins.logging",           # логи в консоль и в logs/
-    "qa_core.pytest_plugins.allure_reporting",  # логи упавшего теста в Allure
-    "qa_core.pytest_plugins.playwright",        # фикстура browser_page
-    "demo_plugin",                              # плагин проекта, см. demo_plugin.py
+    "qa_core.pytest_plugins.fixtures",    # маркеры и фикстура http_client
+    "qa_core.pytest_plugins.logging",     # логи в консоль и в logs/
+    "qa_core.pytest_plugins.playwright",  # фикстура browser_page (нужен набор ui)
 ]
 
 ITEMS = [
@@ -31,44 +32,7 @@ ITEMS = [
     {"Id": 2, "Title": "Второй заказ", "Status": "Draft"},
 ]
 
-
-def make_report_bytes() -> bytes:
-    """Собирает небольшой Excel-отчёт, как его мог бы отдать сервис."""
-    table = pd.DataFrame(
-        {
-            "ФИО": ["Иванов Иван Иванович", "Петров Пётр Петрович"],
-            "Дата": ["01.09.2026", "02.09.2026"],
-            "Часы": [8, 7.5],
-        }
-    )
-    buffer = BytesIO()
-    table.to_excel(buffer, index=False, engine="openpyxl")
-    return buffer.getvalue()
-
-
-# Тестовые данные демо-сервера: они существуют только внутри примеров.
-DEMO_LOGIN = "demo-user"
-DEMO_PASSWORD = "demo-password"
-SESSION_COOKIE = "demo_session=ok"
-
-LOGIN_PAGE = """<!doctype html><html lang="ru"><head><title>Вход</title></head><body>
-<h1>Вход</h1>
-<form method="post" action="/login">
-  <label>Username <input name="username" type="text"></label>
-  <label>Password <input name="password" type="password"></label>
-  <button type="submit">Sign In</button>
-</form></body></html>"""
-
-DASHBOARD_PAGE = """<!doctype html><html lang="ru"><head><title>Стартовая</title></head><body>
-<h1>Стартовая страница</h1>
-<section>
-  <a href="#chat">Чат поддержки</a>
-  <a href="#guide">Руководство пользователя</a>
-  <p>Почта поддержки: support@example.com</p>
-</section></body></html>"""
-
-
-# Заказы демо-сервиса хранятся в памяти: пример показывает создание и удаление данных.
+# Заказы демо-сервиса лежат в памяти: так видно создание и удаление данных.
 ORDERS: dict[int, str] = {}
 ORDERS_LOCK = Lock()
 _next_order_id = count(1)
@@ -79,17 +43,10 @@ ORDERS_PAGE = """<!doctype html><html lang="ru"><head><title>Заказы</title
 
 
 class DemoHandler(BaseHTTPRequestHandler):
-    """Демо-сервис: JSON, Excel-файл, вход, стартовая страница и заказы."""
+    """Демо-сервис: список позиций, API заказов и страница заказов."""
 
     def do_GET(self) -> None:
-        if self.path == "/login":
-            self._send(200, LOGIN_PAGE.encode("utf-8"), "text/html; charset=utf-8")
-        elif self.path == "/dashboard":
-            if SESSION_COOKIE in self.headers.get("Cookie", ""):
-                self._send(200, DASHBOARD_PAGE.encode("utf-8"), "text/html; charset=utf-8")
-            else:
-                self._send(302, b"", "text/plain", {"Location": "/login"})
-        elif self.path == "/api/orders":
+        if self.path == "/api/orders":
             with ORDERS_LOCK:
                 orders = [{"id": key, "title": title} for key, title in ORDERS.items()]
             self._send(200, json.dumps({"value": orders}).encode("utf-8"), "application/json")
@@ -98,18 +55,21 @@ class DemoHandler(BaseHTTPRequestHandler):
                 rows = "".join(f"<li>{escape(title)}</li>" for title in ORDERS.values())
             self._send(200, ORDERS_PAGE.format(rows=rows).encode("utf-8"), "text/html; charset=utf-8")
         elif self.path.startswith("/api/items"):
-            body = json.dumps({"value": ITEMS}).encode("utf-8")
-            self._send(200, body, "application/json")
-        elif self.path == "/report":
-            filename = quote("Отчёт.xlsx")
-            self._send(
-                200,
-                make_report_bytes(),
-                "application/octet-stream",
-                {"Content-Disposition": f"attachment; filename*=UTF-8''{filename}"},
-            )
+            self._send(200, json.dumps({"value": ITEMS}).encode("utf-8"), "application/json")
         else:
             self._send(404, b"not found", "text/plain")
+
+    def do_POST(self) -> None:
+        raw_body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
+        if self.path != "/api/orders":
+            self._send(404, b"not found", "text/plain")
+            return
+        title = json.loads(raw_body)["title"]
+        with ORDERS_LOCK:
+            order_id = next(_next_order_id)
+            ORDERS[order_id] = title
+        body = json.dumps({"id": order_id, "title": title}).encode("utf-8")
+        self._send(201, body, "application/json")
 
     def do_DELETE(self) -> None:
         prefix = "/api/orders/"
@@ -121,53 +81,69 @@ class DemoHandler(BaseHTTPRequestHandler):
         else:
             self._send(204, b"", "text/plain")
 
-    def do_POST(self) -> None:
-        length = int(self.headers.get("Content-Length", 0))
-        raw_body = self.rfile.read(length)
-        if self.path == "/api/orders":
-            title = json.loads(raw_body)["title"]
-            with ORDERS_LOCK:
-                order_id = next(_next_order_id)
-                ORDERS[order_id] = title
-            body = json.dumps({"id": order_id, "title": title}).encode("utf-8")
-            self._send(201, body, "application/json")
-            return
-
-        form = parse_qs(raw_body.decode("utf-8"))
-        valid = (
-            self.path == "/login"
-            and form.get("username") == [DEMO_LOGIN]
-            and form.get("password") == [DEMO_PASSWORD]
-        )
-        if valid:
-            self._send(
-                302,
-                b"",
-                "text/plain",
-                {"Location": "/dashboard", "Set-Cookie": f"{SESSION_COOKIE}; Path=/"},
-            )
-        else:
-            self._send(401, "Неверный логин или пароль".encode("utf-8"), "text/plain; charset=utf-8")
-
-    def _send(self, status: int, body: bytes, content_type: str, headers=None) -> None:
+    def _send(self, status: int, body: bytes, content_type: str) -> None:
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
-        for name, value in (headers or {}).items():
-            self.send_header(name, value)
         self.end_headers()
         self.wfile.write(body)
 
-    def log_message(self, format, *args) -> None:  # noqa: A002 — тишина в консоли
+    def log_message(self, format, *args) -> None:  # noqa: A002 - тишина в консоли
         pass
 
 
 @pytest.fixture(scope="session")
 def demo_url() -> Iterator[str]:
-    """Адрес локального демо-сервера, который живёт на время всех примеров."""
+    """Адрес локального демо-сервера, он живёт на время всех примеров."""
     server = ThreadingHTTPServer(("127.0.0.1", 0), DemoHandler)
-    thread = Thread(target=server.serve_forever, daemon=True)
-    thread.start()
+    Thread(target=server.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{server.server_address[1]}"
     server.shutdown()
     server.server_close()
+
+
+# --- Общие предусловия -------------------------------------------------------
+# Заказ нужен и API-, и UI-тестам, поэтому фикстуры лежат здесь. Если он нужен
+# одному файлу, фикстуру стоит описать в самом файле.
+
+ORDER_PREFIX = "autotest-"
+
+
+def create_order(base_url: str) -> dict:
+    """Создаёт заказ через API и возвращает его данные."""
+    title = f"{ORDER_PREFIX}{uuid4().hex[:8]}"
+    with BaseHttpClient() as http:
+        response = http.post(f"{base_url}/api/orders", json={"title": title})
+    response.raise_for_status()
+    return response.json()
+
+
+def delete_order(base_url: str, order_id: int) -> None:
+    """Удаляет заказ. Ошибка очистки пишется в лог и не скрывает падение теста."""
+    try:
+        with BaseHttpClient() as http:
+            http.delete(f"{base_url}/api/orders/{order_id}").raise_for_status()
+    except Exception:
+        logger.exception("Не удалось удалить тестовый заказ %s", order_id)
+
+
+@pytest.fixture
+def order(demo_url: str) -> Iterator[dict]:
+    """Один заказ: создаётся до теста, удаляется после него."""
+    created = create_order(demo_url)
+    yield created
+    delete_order(demo_url, created["id"])
+
+
+@pytest.fixture
+def order_factory(demo_url: str) -> Iterator[Callable[[], dict]]:
+    """Фабрика для тестов, которым нужно несколько заказов. Удаляет всё созданное."""
+    created: list[dict] = []
+
+    def make() -> dict:
+        created.append(create_order(demo_url))
+        return created[-1]
+
+    yield make
+    for item in created:
+        delete_order(demo_url, item["id"])

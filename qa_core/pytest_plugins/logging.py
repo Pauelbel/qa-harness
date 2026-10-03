@@ -23,7 +23,19 @@ from pathlib import Path
 
 from _pytest.logging import DEFAULT_LOG_FORMAT
 
-from qa_core.pytest_plugins._shared import add_environment_option
+
+
+def add_environment_option(parser) -> None:
+    """Добавляет ``--qa-environment``; повторная регистрация другим плагином безопасна."""
+    try:
+        parser.getgroup("qa-core").addoption(
+            "--qa-environment",
+            action="store",
+            default=None,
+            help="Имя окружения для логов и environment.xml в Allure-результатах",
+        )
+    except ValueError:
+        pass
 
 
 def pytest_addoption(parser) -> None:
