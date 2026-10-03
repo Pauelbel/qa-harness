@@ -37,46 +37,6 @@ python -m venv .venv
 
 В начале строки появится `(.venv)`. Активировать окружение нужно в каждом новом окне PowerShell.
 
-<<<<<<< HEAD
-Выберите нужные наборы зависимостей. Каждый набор можно установить отдельно
-или объединить с другими через запятую. Базовая установка содержит только
-HTTP-транспорт (`requests`). Allure подключается отдельным набором `allure`;
-`frontend` работает без него и сохраняет браузерную диагностику локально.
-
-```powershell
-# Минимальное ядро: HTTP без YAML, pytest и Allure
-python -m pip install -e .
-
-# Необязательная загрузка настроек из YAML
-python -m pip install -e ".[config]"
-
-# Allure и его pytest-плагин
-python -m pip install -e ".[allure]"
-
-# Backend-тесты: HTTP, PostgreSQL, Excel и OData
-python -m pip install -e ".[backend]"
-
-# Frontend-тесты: Python-библиотека Playwright
-python -m pip install -e ".[frontend]"
-
-# Подключение к Vault: Python-библиотека hvac
-python -m pip install -e ".[vault]"
-```
-
-Можно установить несколько наборов одной командой:
-
-```powershell
-# Backend и frontend вместе
-python -m pip install -e ".[backend,frontend]"
-
-# Все расширения и зависимости тестов самого пакета
-python -m pip install -e ".[backend,frontend,vault,allure,test]"
-```
-
-#### Дополнительные настройки frontend
-
-Если выбран `frontend`, после установки пакета отдельно установите браузер Chromium:
-=======
 > Если PowerShell пишет, что выполнение скриптов запрещено, один раз выполните
 > `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` и повторите активацию.
 
@@ -87,7 +47,6 @@ python -m pip install "qa-core[http,excel,allure] @ git+https://github.com/Pauel
 ```
 
 Для тестов в браузере добавьте набор `ui` и один раз скачайте браузер:
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
 
 ```powershell
 python -m pip install "qa-core[ui] @ git+https://github.com/Pauelbel/qa-harness.git"
@@ -103,10 +62,6 @@ pytest_plugins = [
 ]
 ```
 
-<<<<<<< HEAD
-Настройки pytest находятся в `pyproject.toml`. Для запуска проверок самого ядра установите
-наборы `backend,allure,test` и запустите:
-=======
 **4. Напишите тест.** Создайте файл `test_first.py`:
 
 ```python
@@ -119,97 +74,34 @@ def test_service_is_available():
 ```
 
 **5. Запустите:**
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
 
 ```powershell
 python -m pytest
 ```
 
-<<<<<<< HEAD
-Только HTTP-проверки требуют набора `test` и запускаются без Allure:
-
-```powershell
-python -m pip install -e ".[test]"
-python -m pytest tests/test_http.py
-```
-
-Проверка явной загрузки YAML пропускается, если не установлен набор `config`.
-
-## Что относится к ядру
-=======
 В консоли идут логи: адрес запроса, код ответа, время. Значения `token`, `password` и похожих
 параметров в адресе заменены на `***`. Весь подробный лог сохраняется в папку `logs\`. Для поиска
 причины ошибки: `python -m pytest --log-cli-level=DEBUG`.
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
 
 Файл `config.yaml` для старта не нужен: без него работают значения по умолчанию.
 
 ### Быстрее: заготовка проекта
 
-<<<<<<< HEAD
-- `BaseHttpClient` — отправка HTTP-запросов и диагностическое логирование;
-- `PostgresClient` — выполнение параметризованных запросов к PostgreSQL;
-- `ExcelSource` — подготовка Excel из файла, байтов или HTTP-ответа с сохранением исходного имени;
-- `ExcelDataQualityChecker` — последовательные проверки Excel-отчётов;
-- `OdataAssertions` — проверки структуры и поведения OData-ответов;
-- `logging` — единый формат консольных и файловых логов pytest;
-- `allure_reporting` — вложение логов упавшего теста в Allure;
-- `diagnostics` — контракт файлов и общие события диагностических расширений;
-- `playwright` — browser lifecycle, скриншот и trace при падении frontend-теста;
-- `load_settings` — единая загрузка и проверка корневого YAML.
-- `SecretStore` — чтение обязательных значений из `env` или Vault, независимо от pytest.
-=======
 Когда `qa-core` уже установлен, команда `qa-core init` создаёт за вас `conftest.py`, `pytest.ini`,
 `requirements.txt`, `.gitignore`, `config.yaml` (если нужен) и по рабочему тесту на каждый компонент:
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
 
 ```powershell
 qa-core init --components http,excel,allure
 ```
 
-<<<<<<< HEAD
-### HTTP без расширений
-
-Клиент получает настройки через код и по умолчанию не читает `config.yaml`:
-
-```python
-from qa_core.clients.http import BaseHttpClient
-
-with BaseHttpClient(
-    sensitive_query_parameters=["token", "api_key"],
-    max_logged_response_body_length=1000,
-) as http:
-    response = http.get("https://service.example/api/items", timeout=10)
-    response.raise_for_status()
-```
-
-По умолчанию маскируются `token`, `access_token`, `api_key`, `key`, `password`,
-а тело ответа в логе ограничено 2000 символами. Для явной загрузки YAML
-установите набор `config` и передайте `config_path="configs/test.yaml"`.
-Параметры конструктора имеют приоритет над значениями из YAML.
-
-### Подключение pytest-плагинов
-=======
 Если команда `qa-core` не найдена, используйте `python -m qa_core init --components http,excel,allure`.
 Существующие файлы она не перезаписывает. Компоненты: `http`, `db`, `excel`, `odata`, `allure`, `ui`.
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
 
 ### Allure-отчёт
 
-<<<<<<< HEAD
-Для `allure_reporting` сначала установите набор `allure`.
-
-```python
-pytest_plugins = [
-    "qa_core.pytest_plugins.logging",           # консольные и файловые логи
-    "qa_core.pytest_plugins.allure_reporting",  # логи и Allure-отчёт
-    "qa_core.pytest_plugins.playwright",         # frontend-фикстура browser_page
-]
-=======
 ```powershell
 python -m pytest --alluredir=allure-results
 allure generate --single-file -c ./allure-results
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
 ```
 
 Получится один HTML-файл `allure-report\index.html`, его можно открыть в браузере. Программа `allure`
@@ -241,8 +133,42 @@ allure generate --single-file -c ./allure-results
 | `qa_core.pytest_plugins.logging` | Логи в консоль и в файл `logs/pytest_<окружение>.log` | — |
 | `qa_core.pytest_plugins.allure_reporting` | Прикладывает логи к упавшему тесту, пишет `environment.xml` | `allure` |
 | `qa_core.pytest_plugins.playwright` | Фикстура `browser_page`: один браузер на запуск, чистая страница на тест (вход можно сделать один раз через `qa_storage_state`); скриншот и trace при падении | `ui` |
+| `qa_core.pytest_plugins.diagnostics` | Общее событие передачи файлов отчётчикам и каталог диагностики теста; подключается Playwright и Allure сам | — |
 
 Имя окружения для логов и Allure берётся из `--qa-environment=dev` или из переменной `TEST_ENV`.
+
+### Диагностика без Allure
+
+Плагин `playwright` работает и без Allure (набор `ui`). При падении теста или зависимой фикстуры
+скриншот и trace сохраняются в `test-artifacts/<имя-теста>-<идентификатор>/`; у каждого теста свой каталог,
+при успехе файлы не создаются. Корень меняется опцией `--qa-artifacts-dir=diagnostics` (относительный путь
+считается от корня проекта). Закрытая страница или ошибка скриншота не мешает сохранению trace.
+
+Если подключён `allure_reporting`, те же файлы дополнительно прикладываются к отчёту; порядок подключения
+плагинов не важен.
+
+### Свой отчётчик для диагностики
+
+`DiagnosticArtifact` из `qa_core.diagnostics` описывает готовый файл: путь, название, MIME-тип и расширение
+(только стандартная библиотека). Источник сначала сохраняет файл, затем публикует событие:
+
+```python
+from qa_core.diagnostics import DiagnosticArtifact
+
+request.config.hook.pytest_qa_attach_artifact(
+    item=request.node,
+    artifact=DiagnosticArtifact(path, "Диагностика", "application/zip", "zip"),
+)
+```
+
+Другой отчётчик подписывается на то же событие в своём плагине:
+
+```python
+pytest_plugins = ["qa_core.pytest_plugins.diagnostics"]
+
+def pytest_qa_attach_artifact(item, artifact):
+    ...  # приложить artifact.path к своему отчёту
+```
 
 ## Настройка
 
@@ -267,61 +193,6 @@ browser:
 предупреждение с путём (так заметен запуск не из той папки). Опечатка в названии ключа внутри секции
 даёт понятную ошибку с именем секции. Опечатка в названии самой секции (`htpp:`) не замечается.
 
-<<<<<<< HEAD
-### Браузерная диагностика без Allure
-
-Установите набор `frontend` и подключите только браузерный плагин:
-
-```python
-pytest_plugins = ["qa_core.pytest_plugins.playwright"]
-```
-
-При падении теста или зависимой фикстуры скриншот и trace сохраняются в
-`test-artifacts/<имя-теста>-<идентификатор>/`. Для каждого теста создаётся свой
-каталог; при успешном тесте диагностические файлы не создаются. Корневой
-каталог можно изменить через `--qa-artifacts-dir=diagnostics`; относительный
-путь отсчитывается от корня pytest-проекта. Закрытая страница или ошибка
-скриншота не мешает сохранению trace.
-
-Для вложений в Allure установите `.[frontend,allure]`, добавьте
-`qa_core.pytest_plugins.allure_reporting` в `pytest_plugins` и запустите pytest
-с `--alluredir=allure-results`. Локальные файлы сохраняются в обоих режимах.
-Порядок подключения браузерного плагина и отчётчика не имеет значения.
-
-### Контракт диагностических расширений
-
-`DiagnosticArtifact` из `qa_core.diagnostics` описывает готовый файл: путь,
-название, MIME-тип и расширение. Контракт использует только стандартную
-библиотеку Python. Общий pytest-плагин `qa_core.pytest_plugins.diagnostics`
-объявляет событие `pytest_qa_attach_artifact(item, artifact)` и сохраняет
-результаты стадий теста. Playwright и Allure подключают его автоматически.
-
-Источник сначала сохраняет файл, затем публикует событие:
-
-```python
-from qa_core.diagnostics import DiagnosticArtifact
-
-request.config.hook.pytest_qa_attach_artifact(
-    item=request.node,
-    artifact=DiagnosticArtifact(path, "Диагностика", "application/zip", "zip"),
-)
-```
-
-Другой отчётчик может подписаться на то же событие в своём pytest-плагине:
-
-```python
-pytest_plugins = ["qa_core.pytest_plugins.diagnostics"]
-
-def pytest_qa_attach_artifact(item, artifact):
-    # Здесь отчётчик прикладывает artifact.path к своему отчёту.
-    ...
-```
-
-Событие вызывается у всех подключённых обработчиков. При отсутствии
-отчётчиков файлы остаются в локальном каталоге.
-
-Практические примеры находятся в [Шпаргалка.md](Шпаргалка.md).
-=======
 ## Секреты
 
 `SecretStore` читает пароли и токены из переменных окружения или из Vault. Он никогда не переходит на
@@ -438,4 +309,3 @@ python -m venv .venv
 python -m pip install -e ".[all]"
 python -m pytest
 ```
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f

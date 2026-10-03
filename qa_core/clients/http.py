@@ -14,15 +14,10 @@
     ...     response = http.get("https://service.example/api/items", timeout=10)
     ...     response.raise_for_status()
 
-<<<<<<< HEAD
-Настройки маскирования URL и длины ответа передаются через параметры.
-Для совместимости YAML загружается только при явном указании ``config_path``.
-=======
 Настройки маскирования URL и длины ответа в логах читаются из секции ``http``
 корневого ``config.yaml``; без файла действуют значения по умолчанию. Другой
 YAML можно указать через ``config_path``. Если в вызове не указан ``timeout``,
 используется значение из секции (по умолчанию 30 секунд).
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
 """
 
 from __future__ import annotations
@@ -36,12 +31,9 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import requests
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-<<<<<<< HEAD
-=======
 from qa_core.config import load_section
 
 
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
 logger = logging.getLogger(__name__)
 
 
@@ -75,34 +67,20 @@ class BaseHttpClient:
         sensitive_query_parameters: Iterable[str] | None = None,
         max_logged_response_body_length: int | None = None,
     ) -> None:
-<<<<<<< HEAD
-        if config_path is not None:
-            from qa_core.config import load_settings
-
-            settings = load_settings(config_path).http
-            if sensitive_query_parameters is None:
-                sensitive_query_parameters = settings.sensitive_query_parameters
-            if max_logged_response_body_length is None:
-                max_logged_response_body_length = settings.max_logged_response_body_length
-
+        settings = load_section("http", HttpSettings, config_path)
+        self._timeout = settings.timeout
+        # Явно переданные параметры важнее значений из config.yaml.
         if sensitive_query_parameters is None:
-            sensitive_query_parameters = (
-                "token", "access_token", "api_key", "key", "password"
-            )
+            sensitive_query_parameters = settings.sensitive_query_parameters
         if max_logged_response_body_length is None:
-            max_logged_response_body_length = 2000
+            max_logged_response_body_length = (
+                settings.max_logged_response_body_length
+            )
         if max_logged_response_body_length < 0:
             raise ValueError("Длина тела ответа в логе не может быть отрицательной")
 
         self._sensitive_query_parameters = frozenset(
             name.lower() for name in sensitive_query_parameters
-=======
-        settings = load_section("http", HttpSettings, config_path)
-        self._timeout = settings.timeout
-        self._sensitive_query_parameters = settings.sensitive_query_parameters
-        self._max_logged_response_body_length = (
-            settings.max_logged_response_body_length
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
         )
         self._max_logged_response_body_length = max_logged_response_body_length
         self.session = session or requests.Session()

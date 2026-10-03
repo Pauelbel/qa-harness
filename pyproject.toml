@@ -11,45 +11,13 @@ requires-python = ">=3.11"
 
 # Только то, что нужно любому компоненту: чтение config.yaml и pytest.
 dependencies = [
-<<<<<<< HEAD
-    "requests>=2.34",
-=======
     "pydantic>=2.13",
     "pytest>=8",
     "PyYAML>=6.0",
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
 ]
 
 # Каждый компонент ставится отдельным набором: pip install "qa-core[http,excel]".
 [project.optional-dependencies]
-<<<<<<< HEAD
-config = [
-    "pydantic>=2.13",
-    "PyYAML>=6.0",
-]
-allure = [
-    "allure-pytest>=2.16",
-]
-test = [
-    "pytest>=8",
-]
-backend = [
-    "openpyxl>=3.1",
-    "pandas>=3.0",
-    "psycopg2-binary>=2.9",
-    "pytest-check>=2.9",
-    "pydantic>=2.13",
-    "PyYAML>=6.0",
-]
-frontend = [
-    "pytest-playwright",
-    "pydantic>=2.13",
-    "PyYAML>=6.0",
-]
-vault = [
-    "hvac>=2.0",
-]
-=======
 http = ["requests>=2.34"]
 db = ["psycopg2-binary>=2.9"]
 excel = ["openpyxl>=3.1", "pandas>=3.0"]
@@ -66,7 +34,6 @@ all = ["qa-core[http,db,excel,odata,allure,ui,vault]"]
 # Команда qa-core init создаёт заготовку проекта автотестов.
 [project.scripts]
 qa-core = "qa_core.cli:main"
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
 
 [tool.setuptools.packages.find]
 where = ["."]

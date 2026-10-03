@@ -1,16 +1,11 @@
 """Жизненный цикл Playwright с независимой файловой диагностикой.
 
 Зачем нужен файл:
-<<<<<<< HEAD
-    Плагин даёт тесту готовую фикстуру ``browser_page``, закрывает
-    браузер после теста, а при падении сохраняет скриншот и trace.
-    Подключённые отчётчики получают файлы через общий pytest-hook.
-=======
     Плагин даёт тесту готовую фикстуру ``browser_page``. Браузер запускается
     один раз на весь запуск, а каждый тест получает свой чистый контекст и
     страницу (cookies и хранилище не переходят между тестами). При падении
-    теста прикладываются скриншот и trace.
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
+    теста сохраняются скриншот и trace, а подключённые отчётчики получают
+    файлы через общий pytest-hook.
 
 Как подключить:
     pytest_plugins = [
@@ -27,31 +22,20 @@
 
 from __future__ import annotations
 
-<<<<<<< HEAD
 import logging
-=======
 from collections.abc import Iterator
 from typing import Literal
 
-import allure
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
 import pytest
 from playwright.sync_api import Browser, Page, Playwright
 from pydantic import BaseModel, ConfigDict, Field
 
-<<<<<<< HEAD
-from qa_core.config import BrowserSettings, load_settings
+from qa_core.config import load_section
 from qa_core.diagnostics import DiagnosticArtifact
 
 
 pytest_plugins = ["qa_core.pytest_plugins.diagnostics"]
 logger = logging.getLogger(__name__)
-=======
-from qa_core.config import load_section
-from qa_core.pytest_plugins._shared import (
-    pytest_runtest_makereport,  # noqa: F401 — хук регистрируется как часть плагина
-)
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
 
 
 class BrowserSettings(BaseModel):
@@ -101,17 +85,9 @@ def browser_page(
     qa_browser_settings: BrowserSettings,
     qa_storage_state: dict | str | None,
     request,
-<<<<<<< HEAD
     qa_artifact_dir,
-) -> Page:
-    """Запускает браузер и сохраняет диагностику при падении setup или call."""
-    browser_type = getattr(playwright, qa_browser_settings.engine)
-    browser = browser_type.launch(headless=qa_browser_settings.headless)
-    context = None
-=======
-    tmp_path,
 ) -> Iterator[Page]:
-    """Открывает чистую страницу и прикладывает диагностику при падении."""
+    """Открывает чистую страницу и сохраняет диагностику при падении."""
     context = qa_browser.new_context(
         storage_state=qa_storage_state,
         viewport={
@@ -120,27 +96,7 @@ def browser_page(
         },
         ignore_https_errors=qa_browser_settings.ignore_https_errors,
     )
-    context.tracing.start(screenshots=True, snapshots=True, sources=True)
-    page = context.new_page()
-
-    yield page
-
-    setup_report = getattr(request.node, "report_setup", None)
-    call_report = getattr(request.node, "report_call", None)
-    test_failed = any(
-        report is not None and report.failed
-        for report in (setup_report, call_report)
-    )
-
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
     try:
-        context = browser.new_context(
-            viewport={
-                "width": qa_browser_settings.width,
-                "height": qa_browser_settings.height,
-            },
-            ignore_https_errors=qa_browser_settings.ignore_https_errors,
-        )
         context.tracing.start(screenshots=True, snapshots=True, sources=True)
         page = context.new_page()
 
@@ -180,18 +136,10 @@ def browser_page(
         else:
             context.tracing.stop()
     finally:
-<<<<<<< HEAD
-        try:
-            if context is not None:
-                context.close()
-        finally:
-            browser.close()
+        context.close()
 
 
 def _publish_artifact(request, artifact: DiagnosticArtifact) -> None:
     """Сообщает путь в логах и передаёт файл подключённым отчётчикам."""
     logger.info("%s: %s", artifact.name, artifact.path)
     request.config.hook.pytest_qa_attach_artifact(item=request.node, artifact=artifact)
-=======
-        context.close()
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f

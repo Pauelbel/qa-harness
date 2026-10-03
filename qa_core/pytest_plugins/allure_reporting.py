@@ -19,8 +19,11 @@ from xml.etree import ElementTree
 import allure
 import pytest
 
-<<<<<<< HEAD
 from qa_core.diagnostics import DiagnosticArtifact
+from qa_core.pytest_plugins._shared import (
+    add_environment_option,
+    pytest_runtest_makereport,  # noqa: F401 — хук регистрируется как часть плагина
+)
 
 
 pytest_plugins = ["qa_core.pytest_plugins.diagnostics"]
@@ -34,12 +37,6 @@ def pytest_qa_attach_artifact(item, artifact: DiagnosticArtifact) -> None:
         attachment_type=artifact.media_type,
         extension=artifact.extension,
     )
-=======
-from qa_core.pytest_plugins._shared import (
-    add_environment_option,
-    pytest_runtest_makereport,  # noqa: F401 — хук регистрируется как часть плагина
-)
->>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
 
 
 def pytest_addoption(parser) -> None:
