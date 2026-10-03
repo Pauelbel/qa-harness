@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+from contextlib import closing
 from typing import Any, Sequence
 
 import psycopg2
@@ -46,7 +47,10 @@ class PostgresClient:
         params: Sequence[Any] | None = None,
     ) -> list[tuple[Any, ...]]:
         """Выполняет SELECT и возвращает все найденные строки."""
-        with psycopg2.connect(**self.connection_params) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(query, params)
-                return cursor.fetchall()
+        # Контекст самого соединения psycopg2 лишь завершает транзакцию и не
+        # закрывает соединение, поэтому закрытие выполняется отдельно.
+        with closing(psycopg2.connect(**self.connection_params)) as connection:
+            with connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(query, params)
+                    return cursor.fetchall()

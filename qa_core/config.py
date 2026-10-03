@@ -1,75 +1,75 @@
-"""Единая точка загрузки и проверки корневого ``config.yaml``.
+"""Чтение секций корневого ``config.yaml`` для компонентов ядра и плагинов.
 
 Зачем нужен файл:
-    Модели описывают допустимые секции и типы значений, а ``load_settings`` один
-    раз читает каждый YAML. Компоненты ядра получают готовую секцию и не содержат
-    собственных парсеров конфигурации.
+    Файл знает только, как найти YAML и достать из него одну секцию. Модель
+    секции описывает сам компонент рядом со своим кодом, поэтому новый плагин
+    добавляет собственную секцию, не изменяя ядро.
 
-Как использовать:
-    Обычно компоненты вызывают загрузчик сами. Для явного доступа или другого
-    файла конфигурации можно вызвать его напрямую.
+Правила:
+    - ``config.yaml`` необязателен: если файла или секции нет, используются
+      значения по умолчанию из модели, а об отсутствующем файле один раз
+      пишется предупреждение в лог;
+    - неизвестные секции игнорируются, они принадлежат другим компонентам;
+    - неизвестный ключ внутри секции — ошибка, чтобы опечатки не терялись.
 
-    >>> settings = load_settings()
-    >>> settings.http.max_logged_response_body_length
-    2000
-    >>> test_settings = load_settings("configs/test.yaml")
+Как использовать в своём компоненте:
 
-При добавлении новой секции в YAML сначала опишите её Pydantic-модель, затем
-добавьте поле в ``Settings``. Не создавайте отдельный загрузчик для компонента.
+    >>> class KafkaSettings(BaseModel):
+    ...     model_config = ConfigDict(extra="forbid", frozen=True)
+    ...     bootstrap: str = "localhost:9092"
+    >>> kafka = load_section("kafka", KafkaSettings)
+    >>> test_kafka = load_section("kafka", KafkaSettings, "configs/test.yaml")
 """
 
+from __future__ import annotations
+
+import logging
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Any, TypeVar
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ValidationError
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_CONFIG_NAME = "config.yaml"
+
+ModelT = TypeVar("ModelT", bound=BaseModel)
 
 
-class HttpSettings(BaseModel):
-    """Настройки HTTP-клиента."""
+def load_section(
+    name: str,
+    model: type[ModelT],
+    config_path: str | Path | None = None,
+) -> ModelT:
+    """Возвращает проверенную секцию ``name`` из указанного или корневого YAML."""
+    path = Path(config_path) if config_path is not None else Path.cwd() / DEFAULT_CONFIG_NAME
+    raw_section = _read_yaml(path.resolve()).get(name)
+    if raw_section is None:
+        raw_section = {}
+    if not isinstance(raw_section, dict):
+        raise ValueError(f"Секция '{name}' в {path} должна быть словарём ключей и значений")
 
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    max_logged_response_body_length: int = Field(ge=0)
-    sensitive_query_parameters: frozenset[str]
-
-    @field_validator("sensitive_query_parameters")
-    @classmethod
-    def normalize_parameter_names(cls, value: frozenset[str]) -> frozenset[str]:
-        return frozenset(name.lower() for name in value)
-
-
-class BrowserSettings(BaseModel):
-    """Нейтральные настройки браузера для Playwright-фикстуры."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    engine: Literal["chromium", "firefox", "webkit"] = "chromium"
-    headless: bool = True
-    width: int = Field(default=1920, gt=0)
-    height: int = Field(default=1080, gt=0)
-    ignore_https_errors: bool = True
-
-
-class Settings(BaseModel):
-    """Все секции корневого config.yaml."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    http: HttpSettings
-    browser: BrowserSettings = Field(default_factory=BrowserSettings)
-
-
-def load_settings(config_path: str | Path | None = None) -> Settings:
-    """Возвращает проверенные настройки из указанного или корневого YAML."""
-    path = Path(config_path) if config_path is not None else Path.cwd() / "config.yaml"
-    return _load_settings(path.resolve())
+    try:
+        return model.model_validate(raw_section)
+    except ValidationError as exc:
+        raise ValueError(f"Некорректная секция '{name}' в {path}:\n{exc}") from None
 
 
 @lru_cache
-def _load_settings(path: Path) -> Settings:
-    """Читает каждый файл конфигурации один раз."""
+def _read_yaml(path: Path) -> dict[str, Any]:
+    """Читает каждый файл один раз; отсутствующий файл равен пустой конфигурации."""
+    if not path.is_file():
+        # Предупреждение выходит один раз на файл благодаря кэшу: так запуск
+        # не из той папки не остаётся незамеченным.
+        logger.warning(
+            "Файл конфигурации не найден: %s. Используются значения по умолчанию.",
+            path,
+        )
+        return {}
     with path.open(encoding="utf-8") as config_file:
-        raw_config = yaml.safe_load(config_file) or {}
-    return Settings.model_validate(raw_config)
+        content = yaml.safe_load(config_file) or {}
+    if not isinstance(content, dict):
+        raise ValueError(f"Корень {path} должен быть словарём секций")
+    return content

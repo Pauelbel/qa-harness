@@ -11,12 +11,10 @@ from qa_core.clients.postgres import PostgresClient
 @allure.epic("Backend")
 @allure.title("PostgreSQL-клиент выполняет параметризованный запрос")
 def test_fetch_all_executes_parameterized_query(monkeypatch) -> None:
-    connect_context = MagicMock()
-    connection = connect_context.__enter__.return_value
-    cursor_context = connection.cursor.return_value
-    cursor = cursor_context.__enter__.return_value
+    connection = MagicMock()
+    cursor = connection.cursor.return_value.__enter__.return_value
     cursor.fetchall.return_value = [(1,), (2,)]
-    connect = MagicMock(return_value=connect_context)
+    connect = MagicMock(return_value=connection)
     monkeypatch.setattr(postgres.psycopg2, "connect", connect)
 
     client = PostgresClient(
@@ -42,3 +40,6 @@ def test_fetch_all_executes_parameterized_query(monkeypatch) -> None:
             "SELECT id FROM orders WHERE status = %s",
             ["new"],
         )
+
+    with allure.step("Проверить, что соединение закрыто"):
+        connection.close.assert_called_once_with()

@@ -53,6 +53,7 @@ def http_config_path(tmp_path: Path) -> Path:
     return config_path
 
 
+<<<<<<< HEAD
 def test_safe_url_masks_configured_query_parameters() -> None:
     client = BaseHttpClient(
         session=FakeSession(), sensitive_query_parameters=["TOKEN"]
@@ -62,6 +63,23 @@ def test_safe_url_masks_configured_query_parameters() -> None:
     )
     assert "secret" not in safe_url
     assert "visible=yes" in safe_url
+=======
+@allure.epic("Backend")
+@allure.title("Маскирование чувствительных query-параметров")
+def test_safe_url_masks_configured_query_parameters(
+    http_config_path: Path,
+) -> None:
+    with allure.step("Сформировать URL для лога"):
+        client = BaseHttpClient(session=FakeSession(), config_path=http_config_path)
+        safe_url = client._safe_url(
+            "https://service.example/items?token=secret&visible=yes"
+        )
+
+    with allure.step("Проверить маскирование"):
+        assert "secret" not in safe_url
+        assert "token=***" in safe_url
+        assert "visible=yes" in safe_url
+>>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
 
 
 def test_get_returns_original_full_response() -> None:
@@ -149,6 +167,7 @@ def test_get_from_local_server(tmp_path: Path, monkeypatch) -> None:
         def log_message(self, format, *args) -> None:
             pass
 
+<<<<<<< HEAD
     monkeypatch.chdir(tmp_path)
     server = HTTPServer(("127.0.0.1", 0), Handler)
     thread = Thread(target=server.serve_forever, daemon=True)
@@ -165,3 +184,44 @@ def test_get_from_local_server(tmp_path: Path, monkeypatch) -> None:
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+=======
+    with allure.step("Проверить закрытие сессии"):
+        assert session.closed is True
+
+
+@allure.epic("Backend")
+@allure.title("HTTP-клиент подставляет таймаут из настроек, если он не указан")
+def test_default_timeout_is_applied(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text("http:\n  timeout: 7\n", encoding="utf-8")
+    session = FakeSession()
+    client = BaseHttpClient(session=session, config_path=config_path)
+
+    client.get("https://service.example/items")
+
+    assert session.calls[0][2]["timeout"] == 7
+
+
+@allure.epic("Backend")
+@allure.title("HTTP-клиент оставляет таймаут, переданный в вызове")
+def test_explicit_timeout_wins(tmp_path: Path) -> None:
+    session = FakeSession()
+    client = BaseHttpClient(session=session, config_path=tmp_path / "нет.yaml")
+
+    client.get("https://service.example/items", timeout=3)
+    client.get("https://service.example/items", timeout=None)
+
+    assert session.calls[0][2]["timeout"] == 3
+    assert session.calls[1][2]["timeout"] is None
+
+
+@allure.epic("Backend")
+@allure.title("Без настроек таймаут по умолчанию — 30 секунд")
+def test_timeout_default_is_thirty_seconds(tmp_path: Path) -> None:
+    session = FakeSession()
+    client = BaseHttpClient(session=session, config_path=tmp_path / "нет.yaml")
+
+    client.get("https://service.example/items")
+
+    assert session.calls[0][2]["timeout"] == 30
+>>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f

@@ -14,8 +14,15 @@
     ...     response = http.get("https://service.example/api/items", timeout=10)
     ...     response.raise_for_status()
 
+<<<<<<< HEAD
 Настройки маскирования URL и длины ответа передаются через параметры.
 Для совместимости YAML загружается только при явном указании ``config_path``.
+=======
+Настройки маскирования URL и длины ответа в логах читаются из секции ``http``
+корневого ``config.yaml``; без файла действуют значения по умолчанию. Другой
+YAML можно указать через ``config_path``. Если в вызове не указан ``timeout``,
+используется значение из секции (по умолчанию 30 секунд).
+>>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
 """
 
 from __future__ import annotations
@@ -27,8 +34,33 @@ from types import TracebackType
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import requests
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+<<<<<<< HEAD
+=======
+from qa_core.config import load_section
+
+
+>>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
 logger = logging.getLogger(__name__)
+
+
+class HttpSettings(BaseModel):
+    """Секция ``http`` файла config.yaml."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    # Секунды на ответ, если в вызове не передан свой timeout.
+    timeout: float = Field(default=30, gt=0)
+    max_logged_response_body_length: int = Field(default=2000, ge=0)
+    sensitive_query_parameters: frozenset[str] = frozenset(
+        {"token", "access_token", "api_key", "key", "password"}
+    )
+
+    @field_validator("sensitive_query_parameters")
+    @classmethod
+    def normalize_parameter_names(cls, value: frozenset[str]) -> frozenset[str]:
+        return frozenset(name.lower() for name in value)
 
 
 class BaseHttpClient:
@@ -43,6 +75,7 @@ class BaseHttpClient:
         sensitive_query_parameters: Iterable[str] | None = None,
         max_logged_response_body_length: int | None = None,
     ) -> None:
+<<<<<<< HEAD
         if config_path is not None:
             from qa_core.config import load_settings
 
@@ -63,6 +96,13 @@ class BaseHttpClient:
 
         self._sensitive_query_parameters = frozenset(
             name.lower() for name in sensitive_query_parameters
+=======
+        settings = load_section("http", HttpSettings, config_path)
+        self._timeout = settings.timeout
+        self._sensitive_query_parameters = settings.sensitive_query_parameters
+        self._max_logged_response_body_length = (
+            settings.max_logged_response_body_length
+>>>>>>> 4bb577fd1ea6e130ec43756d6213dcc872789e4f
         )
         self._max_logged_response_body_length = max_logged_response_body_length
         self.session = session or requests.Session()
@@ -81,7 +121,9 @@ class BaseHttpClient:
                     else value,
                 )
                 for key, value in parse_qsl(parsed.query, keep_blank_values=True)
-            ]
+            ],
+            # Символы без экранирования: «***» и привычные для OData $, кавычки, скобки.
+            safe="*$'(),:/",
         )
         return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, query, ""))
 
@@ -98,6 +140,9 @@ class BaseHttpClient:
     def _request(self, method: str, full_url: str, **kwargs) -> requests.Response:
         safe_url = self._safe_url(full_url)
         method_name = method.upper()
+        # Без таймаута запрос к зависшему сервису блокирует тест навсегда.
+        # Явный ``timeout=None`` в вызове по-прежнему отключает ограничение.
+        kwargs.setdefault("timeout", self._timeout)
 
         try:
             response = self.session.request(method, full_url, **kwargs)
