@@ -1,11 +1,12 @@
 """Общий pytest-плагин для диагностических вложений Allure.
 
 Зачем нужен файл:
-    Плагин запоминает результат каждой стадии pytest и, если тест упал,
-    прикладывает накопленные логи к Allure. При передаче ``--qa-environment``
+    Плагин прикладывает накопленные логи упавшего теста и готовые файлы
+    диагностических расширений к Allure. При передаче ``--qa-environment``
     также создаёт ``environment.xml`` рядом с результатами Allure.
 
 Как подключить в ``conftest.py`` проекта:
+    Сначала установите необязательный набор ``qa-core[allure]``.
     pytest_plugins = ["qa_core.pytest_plugins.allure_reporting"]
 
 Плагин не знает названий проектов, URL или учётных данных. Декораторы и шаги
@@ -17,6 +18,21 @@ from xml.etree import ElementTree
 
 import allure
 import pytest
+
+from qa_core.diagnostics import DiagnosticArtifact
+
+
+pytest_plugins = ["qa_core.pytest_plugins.diagnostics"]
+
+
+def pytest_qa_attach_artifact(item, artifact: DiagnosticArtifact) -> None:
+    """Прикладывает готовый файл от любого диагностического расширения."""
+    allure.attach.file(
+        str(artifact.path),
+        name=artifact.name,
+        attachment_type=artifact.media_type,
+        extension=artifact.extension,
+    )
 
 
 def pytest_addoption(parser) -> None:
@@ -50,15 +66,6 @@ def pytest_sessionfinish(session, exitstatus) -> None:
         encoding="utf-8",
         xml_declaration=True,
     )
-
-
-@pytest.hookimpl(hookwrapper=True)
-def pytest_runtest_makereport(item, call):
-    """Сохраняет отчёт каждой стадии на объекте теста."""
-    del call
-    outcome = yield
-    report = outcome.get_result()
-    setattr(item, f"report_{report.when}", report)
 
 
 @pytest.fixture(autouse=True)

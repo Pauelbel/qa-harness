@@ -14,21 +14,19 @@
     ...     response = http.get("https://service.example/api/items", timeout=10)
     ...     response.raise_for_status()
 
-Настройки маскирования URL и длины ответа в логах читаются из секции ``http``
-корневого ``config.yaml``. Другой YAML можно указать через ``config_path``.
+Настройки маскирования URL и длины ответа передаются через параметры.
+Для совместимости YAML загружается только при явном указании ``config_path``.
 """
 
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from pathlib import Path
 from types import TracebackType
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import requests
-
-from qa_core.config import load_settings
-
 
 logger = logging.getLogger(__name__)
 
@@ -42,12 +40,31 @@ class BaseHttpClient:
         *,
         print_response: bool = False,
         config_path: str | Path | None = None,
+        sensitive_query_parameters: Iterable[str] | None = None,
+        max_logged_response_body_length: int | None = None,
     ) -> None:
-        settings = load_settings(config_path).http
-        self._sensitive_query_parameters = settings.sensitive_query_parameters
-        self._max_logged_response_body_length = (
-            settings.max_logged_response_body_length
+        if config_path is not None:
+            from qa_core.config import load_settings
+
+            settings = load_settings(config_path).http
+            if sensitive_query_parameters is None:
+                sensitive_query_parameters = settings.sensitive_query_parameters
+            if max_logged_response_body_length is None:
+                max_logged_response_body_length = settings.max_logged_response_body_length
+
+        if sensitive_query_parameters is None:
+            sensitive_query_parameters = (
+                "token", "access_token", "api_key", "key", "password"
+            )
+        if max_logged_response_body_length is None:
+            max_logged_response_body_length = 2000
+        if max_logged_response_body_length < 0:
+            raise ValueError("Длина тела ответа в логе не может быть отрицательной")
+
+        self._sensitive_query_parameters = frozenset(
+            name.lower() for name in sensitive_query_parameters
         )
+        self._max_logged_response_body_length = max_logged_response_body_length
         self.session = session or requests.Session()
         self.print_response = print_response
         self._owns_session = session is None

@@ -9,21 +9,32 @@ description = "Reusable HTTP, PostgreSQL, OData and data-quality test infrastruc
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "allure-pytest>=2.16",
-    "pydantic>=2.13",
-    "PyYAML>=6.0",
+    "requests>=2.34",
 ]
 
 [project.optional-dependencies]
+config = [
+    "pydantic>=2.13",
+    "PyYAML>=6.0",
+]
+allure = [
+    "allure-pytest>=2.16",
+]
+test = [
+    "pytest>=8",
+]
 backend = [
     "openpyxl>=3.1",
     "pandas>=3.0",
     "psycopg2-binary>=2.9",
     "pytest-check>=2.9",
-    "requests>=2.34",
+    "pydantic>=2.13",
+    "PyYAML>=6.0",
 ]
 frontend = [
     "pytest-playwright",
+    "pydantic>=2.13",
+    "PyYAML>=6.0",
 ]
 vault = [
     "hvac>=2.0",
