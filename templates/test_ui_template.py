@@ -5,7 +5,7 @@
 3. Замените адрес, фикстуры и шаги (места с «ЗАМЕНИТЕ»).
 4. Запустите:   python -m pytest tests/ui/test_<тема>.py
 
-Нужны плагин qa_core.pytest_plugins.playwright в conftest.py и набор ui.
+Нужен плагин qa_core.pytest_plugins.playwright в conftest.py.
 Правила: в тесте нет локаторов и кликов (их прячет Page Object), данные создаются
 через API фикстурой, time.sleep не нужен (expect сам ждёт). При падении скриншот
 и trace лежат в test-artifacts/.

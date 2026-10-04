@@ -9,7 +9,7 @@
 
 Что получает тест:
     ``http_client`` — готовый ``BaseHttpClient``, закрывается сам после теста
-    (нужен набор ``http``).
+    (нужен пакет requests).
 
 Маркеры (запуск ``pytest -m ui``, ``pytest -m "api and smoke"``):
     ``api``, ``ui``, ``db``, ``smoke``, ``regression``.
@@ -47,7 +47,7 @@ def pytest_configure(config) -> None:
 @pytest.fixture
 def http_client() -> Iterator["BaseHttpClient"]:
     """HTTP-клиент с логами и маскированием токенов; закрывается после теста."""
-    # Импорт здесь, чтобы плагин (и маркеры) работали и без набора ``http``.
+    # Импорт здесь, чтобы плагин (и маркеры) работали и без пакета requests.
     from qa_core.clients.http import BaseHttpClient
 
     with BaseHttpClient() as client:

@@ -1,38 +1,7 @@
-[build-system]
-requires = ["setuptools>=77"]
-build-backend = "setuptools.build_meta"
-
-[project]
-name = "qa-core"
-version = "0.2.0"
-description = "Переносимое ядро автотестов: клиенты, проверки, плагины pytest"
-requires-python = ">=3.11"
-
-# Нужно любому компоненту: чтение config.yaml и pytest.
-dependencies = ["pydantic>=2.13", "pytest>=8", "PyYAML>=6.0"]
-
-# Ставьте только нужное: pip install "qa-core[http,ui] @ git+https://github.com/Pauelbel/qa-harness.git"
-[project.optional-dependencies]
-http = ["requests>=2.34"]
-db = ["psycopg2-binary>=2.9"]
-excel = ["openpyxl>=3.1", "pandas>=3.0"]
-odata = ["pytest-check>=2.9"]
-allure = ["allure-pytest>=2.16"]
-ui = ["pytest-playwright"]
-vault = ["hvac>=2.0"]
-dev = ["ruff>=0.6"]
-
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["qa_core*"]
+# Только настройки инструментов. Зависимости: requirements.txt.
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers"
 pythonpath = ["."]
 testpaths = ["tests", "examples"]
 python_files = ["test_*.py"]
-
-# Линтер ловит реальные ошибки (неиспользуемые импорты, опечатки), стиль не навязывает.
-[tool.ruff.lint]
-select = ["E9", "F", "B"]
-ignore = ["B008"]

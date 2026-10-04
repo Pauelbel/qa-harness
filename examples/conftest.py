@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 pytest_plugins = [
     "qa_core.pytest_plugins.fixtures",    # маркеры и фикстура http_client
     "qa_core.pytest_plugins.logging",     # логи в консоль и в logs/
-    "qa_core.pytest_plugins.playwright",  # фикстура browser_page (нужен набор ui)
+    "qa_core.pytest_plugins.playwright",  # фикстура browser_page
 ]
 
 ITEMS = [

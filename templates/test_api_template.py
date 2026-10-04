@@ -4,7 +4,7 @@
 2. Замените адрес, путь запроса и ожидаемые значения (места с «ЗАМЕНИТЕ»).
 3. Запустите:   python -m pytest tests/api/test_<тема>.py
 
-Нужны плагин qa_core.pytest_plugins.fixtures в conftest.py и набор http.
+Нужен плагин qa_core.pytest_plugins.fixtures в conftest.py.
 Правила — в Правила.md: один тест — одна мысль, подготовка → действие → проверка,
 данные создаёт фикстура, сообщение в assert пишется по-русски.
 """

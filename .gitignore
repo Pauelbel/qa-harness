@@ -3,9 +3,6 @@ __pycache__/
 .venv/
 .env
 test-artifacts/
-*.egg-info/
-build/
-dist/
 allure-results/
 allure-report/
 logs/

@@ -6,11 +6,9 @@
 2. Страница. Фикстура ``orders_page`` отдаёт готовый Page Object (pages/orders_page.py).
 3. Тест. Только понятные шаги: открыть страницу, проверить заказ.
 
-Запускается, когда установлен Chromium (``python -m playwright install chromium``)
-и задана переменная ``EXAMPLE_UI=1``. В Docker это уже сделано.
+Нужен браузер: ``pip install -r requirements.txt`` и ``python -m playwright install chromium``.
 """
 
-import os
 from collections.abc import Callable
 
 import pytest
@@ -18,13 +16,7 @@ from playwright.sync_api import Page
 
 from pages.orders_page import OrdersPage
 
-pytestmark = [
-    pytest.mark.ui,
-    pytest.mark.skipif(
-        os.getenv("EXAMPLE_UI") != "1",
-        reason="Установите браузер (python -m playwright install chromium) и задайте EXAMPLE_UI=1",
-    ),
-]
+pytestmark = pytest.mark.ui
 
 
 @pytest.fixture
