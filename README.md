@@ -27,7 +27,7 @@ python -m pytest
 tests/, examples/, templates/   тесты и заготовки: только вызывают нижние слои
 фикстуры                        общие: pytest_plugins/fixtures.py; узкие: conftest.py рядом с тестом
 pytest_plugins/                 по желанию: logging, allure_reporting, playwright
-checks/                         проверки: excel, odata, screenshot (позже json, xml)
+checks/                         проверки: excel, odata (позже json, xml)
 clients/                        транспорт: http, postgres, browser (BasePage/BaseElement)
                                 (позже websocket и др.)
 sources/                        подготовка данных для проверок (Excel из файла или ответа)

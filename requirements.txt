@@ -9,5 +9,3 @@ pytest-check>=2.9
 allure-pytest>=2.16
 pytest-playwright
 hvac>=2.0
-opencv-python-headless>=4.10
-numpy>=2
