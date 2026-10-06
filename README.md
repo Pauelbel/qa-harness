@@ -31,7 +31,7 @@ checks/                         проверки: excel, odata (позже json,
 clients/                        транспорт: http, postgres, browser (BasePage/BaseElement)
                                 (позже websocket и др.)
 sources/                        подготовка данных для проверок (Excel из файла или ответа)
-config.py, secrets.py, steps.py настройки (config.yaml), секреты (env или Vault),
+config.py, secrets.py, steps.py настройки (config.py), секреты (env или Vault),
                                 шаг теста: лог, а при наличии Allure ещё и шаг отчёта
 ```
 
@@ -85,5 +85,5 @@ git subtree push --prefix=qa-harness https://github.com/Pauelbel/qa-harness.git 
 
 - [examples/](examples/): HTTP, предусловие через API, UI с Page Object.
 - [templates/](templates/): заготовки API- и UI-теста, копируйте и меняйте.
-- Настройки — `config.yaml` (необязателен), секреты — переменные окружения или Vault.
+- Настройки — `config.py` (необязателен), секреты — переменные окружения или Vault.
 - Перед пушем: `python -m pytest`.

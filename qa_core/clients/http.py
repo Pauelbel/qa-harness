@@ -15,8 +15,8 @@
     ...     response.raise_for_status()
 
 Настройки маскирования URL и длины ответа в логах читаются из секции ``http``
-корневого ``config.yaml``; без файла действуют значения по умолчанию. Другой
-YAML можно указать через ``config_path``. Если в вызове не указан ``timeout``,
+корневого ``config.py`` (словарь ``HTTP``); без файла действуют значения по
+умолчанию. Если в вызове не указан ``timeout``,
 используется значение из секции (по умолчанию 30 секунд).
 """
 
@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from pathlib import Path
 from types import TracebackType
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -38,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 class HttpSettings(BaseModel):
-    """Секция ``http`` файла config.yaml."""
+    """Секция ``HTTP`` файла config.py."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -63,12 +62,11 @@ class BaseHttpClient:
         session: requests.Session | None = None,
         *,
         print_response: bool = False,
-        config_path: str | Path | None = None,
         sensitive_query_parameters: Iterable[str] | None = None,
         max_logged_response_body_length: int | None = None,
     ) -> None:
-        settings = load_section("http", HttpSettings, config_path)
-        # Параметры конструктора важнее значений из config.yaml.
+        settings = load_section("http", HttpSettings)
+        # Параметры конструктора важнее значений из config.py.
         if sensitive_query_parameters is not None:
             settings = settings.model_copy(
                 update={

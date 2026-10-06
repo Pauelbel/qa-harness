@@ -1,6 +1,5 @@
 pytest>=8
 pydantic>=2.13
-PyYAML>=6.0
 requests>=2.34
 psycopg2-binary>=2.9
 openpyxl>=3.1

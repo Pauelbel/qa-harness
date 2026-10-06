@@ -1,75 +1,83 @@
-"""Чтение секций корневого ``config.yaml`` для компонентов ядра и плагинов.
+"""Чтение настроек из файла ``config.py`` в корне проекта.
 
 Зачем нужен файл:
-    Файл знает только, как найти YAML и достать из него одну секцию. Модель
-    секции описывает сам компонент рядом со своим кодом, поэтому новый плагин
-    добавляет собственную секцию, не изменяя ядро.
+    Настройки лежат в обычном Python-файле ``config.py`` рядом с тестами: одна
+    секция — один словарь с именем в верхнем регистре (``HTTP``, ``BROWSER``).
+    Модель секции описывает сам компонент рядом со своим кодом, поэтому новый
+    плагин добавляет собственную секцию, не изменяя ядро.
 
 Правила:
-    - ``config.yaml`` необязателен: если файла или секции нет, используются
+    - ``config.py`` необязателен: если файла или секции нет, используются
       значения по умолчанию из модели, а об отсутствующем файле один раз
       пишется предупреждение в лог;
     - неизвестные секции игнорируются, они принадлежат другим компонентам;
     - неизвестный ключ внутри секции — ошибка, чтобы опечатки не терялись.
+
+Пример ``config.py`` проекта:
+
+    HTTP = {"timeout": 30}
+    BROWSER = {"headless": False}
+    KAFKA = {"bootstrap": "kafka:9092"}
 
 Как использовать в своём компоненте:
 
     >>> class KafkaSettings(BaseModel):
     ...     model_config = ConfigDict(extra="forbid", frozen=True)
     ...     bootstrap: str = "localhost:9092"
-    >>> kafka = load_section("kafka", KafkaSettings)
-    >>> test_kafka = load_section("kafka", KafkaSettings, "configs/test.yaml")
+    >>> kafka = load_section("kafka", KafkaSettings)   # читает KAFKA из config.py
+
+Файл ``config.py`` должен быть виден для импорта: pytest запускают из корня
+проекта (``pythonpath = .`` в настройках pytest).
 """
 
 from __future__ import annotations
 
+import importlib
 import logging
 from functools import lru_cache
-from pathlib import Path
-from typing import Any, TypeVar
+from types import ModuleType
+from typing import TypeVar
 
-import yaml
 from pydantic import BaseModel, ValidationError
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_CONFIG_NAME = "config.yaml"
+PROJECT_CONFIG_MODULE = "config"
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
 
 
-def load_section(
-    name: str,
-    model: type[ModelT],
-    config_path: str | Path | None = None,
-) -> ModelT:
-    """Возвращает проверенную секцию ``name`` из указанного или корневого YAML."""
-    path = Path(config_path) if config_path is not None else Path.cwd() / DEFAULT_CONFIG_NAME
-    raw_section = _read_yaml(path.resolve()).get(name)
+def load_section(name: str, model: type[ModelT]) -> ModelT:
+    """Возвращает проверенную секцию ``name`` из ``config.py`` проекта."""
+    module = _project_config()
+    raw_section = getattr(module, name.upper(), None) if module is not None else None
     if raw_section is None:
         raw_section = {}
     if not isinstance(raw_section, dict):
-        raise ValueError(f"Секция '{name}' в {path} должна быть словарём ключей и значений")
+        raise ValueError(
+            f"{name.upper()} в {PROJECT_CONFIG_MODULE}.py должна быть словарём ключей и значений"
+        )
 
     try:
         return model.model_validate(raw_section)
     except ValidationError as exc:
-        raise ValueError(f"Некорректная секция '{name}' в {path}:\n{exc}") from None
+        raise ValueError(
+            f"Некорректная секция {name.upper()} в {PROJECT_CONFIG_MODULE}.py:\n{exc}"
+        ) from None
 
 
 @lru_cache
-def _read_yaml(path: Path) -> dict[str, Any]:
-    """Читает каждый файл один раз; отсутствующий файл равен пустой конфигурации."""
-    if not path.is_file():
-        # Предупреждение выходит один раз на файл благодаря кэшу: так запуск
-        # не из той папки не остаётся незамеченным.
+def _project_config() -> ModuleType | None:
+    """Импортирует ``config.py`` один раз; отсутствующий файл равен пустым настройкам."""
+    try:
+        return importlib.import_module(PROJECT_CONFIG_MODULE)
+    except ModuleNotFoundError as exc:
+        if exc.name != PROJECT_CONFIG_MODULE:
+            raise  # ошибка внутри самого config.py не должна скрываться
+        # Предупреждение выходит один раз благодаря кэшу: так запуск не из той
+        # папки не остаётся незамеченным.
         logger.warning(
-            "Файл конфигурации не найден: %s. Используются значения по умолчанию.",
-            path,
+            "Файл %s.py не найден. Используются значения по умолчанию.",
+            PROJECT_CONFIG_MODULE,
         )
-        return {}
-    with path.open(encoding="utf-8") as config_file:
-        content = yaml.safe_load(config_file) or {}
-    if not isinstance(content, dict):
-        raise ValueError(f"Корень {path} должен быть словарём секций")
-    return content
+        return None

@@ -16,7 +16,7 @@
 фикстуру ``qa_storage_state`` (пример — в examples/test_06_ui_login.py).
 
 Проект может переопределить фикстуру ``qa_browser_settings``, если берёт
-настройки не из корневого ``config.yaml``. Переопределённая фикстура должна
+настройки не из корневого ``config.py``. Переопределённая фикстура должна
 иметь ``scope="session"``, потому что от неё зависит общий браузер.
 """
 
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 
 class BrowserSettings(BaseModel):
-    """Секция ``browser`` файла config.yaml."""
+    """Секция ``BROWSER`` файла config.py."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
